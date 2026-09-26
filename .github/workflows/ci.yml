@@ -106,7 +106,21 @@ jobs:
             exit 1
           fi
 
+          configured_projects=()
           for test_project in "${test_projects[@]}"; do
+            if grep -qi 'PackageReference Include="coverlet.collector"' "$test_project"; then
+              configured_projects+=("$test_project")
+            else
+              echo "Skipping $test_project (coverlet.collector not configured)."
+            fi
+          done
+
+          if [ "${#configured_projects[@]}" -eq 0 ]; then
+            echo "No test projects with coverlet.collector configured."
+            exit 1
+          fi
+
+          for test_project in "${configured_projects[@]}"; do
             project_name="$(basename "$test_project" .csproj)"
             dotnet test "$test_project" \
               --configuration Release \
@@ -155,7 +169,7 @@ PY
           fi
 
       - name: Docker Build Validation
-        run: docker build --file src/Api/Dockerfile --tag car-repair-production-service:ci-validation .
+        run: docker build --file src/Api/Dockerfile --target final --tag car-repair-production-service:ci-validation .
 
       - name: SonarCloud Analysis - End (Quality Gate)
         if: steps.sonar-config.outputs.enabled == 'true' && steps.sonar-begin.outcome == 'success'
