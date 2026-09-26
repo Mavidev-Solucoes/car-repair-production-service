@@ -100,11 +100,20 @@ jobs:
 
       - name: Tests + Coverage
         run: |
-          dotnet test CarRepairProductionService.sln \
-            --configuration Release \
-            --no-build \
-            --collect:"XPlat Code Coverage;Format=opencover" \
-            --results-directory TestResults
+          mapfile -t test_projects < <(find tests -name '*.csproj' | sort)
+          if [ "${#test_projects[@]}" -eq 0 ]; then
+            echo "No test projects found under ./tests."
+            exit 1
+          fi
+
+          for test_project in "${test_projects[@]}"; do
+            project_name="$(basename "$test_project" .csproj)"
+            dotnet test "$test_project" \
+              --configuration Release \
+              --no-build \
+              --collect:"XPlat Code Coverage;Format=opencover" \
+              --results-directory "TestResults/${project_name}"
+          done
 
       - name: Generate Coverage Report (ReportGenerator)
         run: |
