@@ -1,6 +1,7 @@
 using Domain.Entities;
 using Domain.Enums;
 using Domain.Events;
+using Xunit;
 
 namespace UnitTests;
 
