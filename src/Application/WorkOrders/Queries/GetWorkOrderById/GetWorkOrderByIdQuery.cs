@@ -13,6 +13,7 @@ public sealed record WorkOrderDetailsResponse(
     DateTime CreatedAtUtc,
     DateTime? StartedAtUtc,
     DateTime? CompletedAtUtc,
+    DateTime? FailedAtUtc,
     string? FailureReason,
     long Version,
     IReadOnlyCollection<WorkOrderStatusHistoryResponse> StatusHistory);

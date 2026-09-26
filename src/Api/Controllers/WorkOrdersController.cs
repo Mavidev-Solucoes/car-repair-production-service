@@ -20,7 +20,7 @@ public sealed class WorkOrdersController(ISender sender) : ControllerBase
             new CreateWorkOrderCommand(request.ServiceJobId, request.ServiceJobName, request.ServiceJobDescription),
             cancellationToken);
 
-        return CreatedAtAction(nameof(GetWorkOrderById), new { workOrderId }, new { id = workOrderId });
+        return CreatedAtAction(nameof(GetWorkOrderById), new { workOrderId = workOrderId }, new { id = workOrderId });
     }
 
     [HttpGet("{workOrderId:guid}")]

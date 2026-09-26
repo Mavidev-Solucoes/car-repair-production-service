@@ -21,6 +21,7 @@ internal static class ServiceOrderJobMapper
             CreatedAtUtc = entity.CreatedAtUtc,
             StartedAtUtc = entity.StartedAtUtc,
             CompletedAtUtc = entity.CompletedAtUtc,
+            FailedAtUtc = entity.FailedAtUtc,
             FailureReason = entity.FailureReason,
             Version = entity.Version,
             StatusHistory = entity.StatusHistory
@@ -43,6 +44,7 @@ internal static class ServiceOrderJobMapper
             document.CreatedAtUtc,
             document.StartedAtUtc,
             document.CompletedAtUtc,
+            document.FailedAtUtc,
             document.FailureReason,
             document.Version,
             document.StatusHistory

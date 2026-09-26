@@ -21,7 +21,6 @@ internal sealed class ServiceOrderJobRepository(
         var document = ServiceOrderJobMapper.ToDocument(serviceOrderJob);
 
         await _collection.InsertOneAsync(document, cancellationToken: cancellationToken);
-        serviceOrderJob.ClearDomainEvents();
     }
 
     public async Task<ServiceOrderJob?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
@@ -57,6 +56,5 @@ internal sealed class ServiceOrderJobRepository(
             throw new BusinessRuleException("Work order state changed by another request. Reload and retry.");
         }
 
-        serviceOrderJob.ClearDomainEvents();
     }
 }

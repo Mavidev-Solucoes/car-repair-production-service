@@ -14,6 +14,8 @@ internal sealed class ServiceOrderJobDocument
 
     public DateTime? CompletedAtUtc { get; set; }
 
+    public DateTime? FailedAtUtc { get; set; }
+
     public string? FailureReason { get; set; }
 
     public long Version { get; set; }

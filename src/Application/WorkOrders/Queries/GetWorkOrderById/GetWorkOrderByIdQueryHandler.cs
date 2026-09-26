@@ -25,6 +25,7 @@ public sealed class GetWorkOrderByIdQueryHandler(IServiceOrderJobRepository repo
             workOrder.CreatedAtUtc,
             workOrder.StartedAtUtc,
             workOrder.CompletedAtUtc,
+            workOrder.FailedAtUtc,
             workOrder.FailureReason,
             workOrder.Version,
             workOrder.StatusHistory
