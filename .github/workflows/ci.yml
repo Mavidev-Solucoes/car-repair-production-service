@@ -110,7 +110,16 @@ jobs:
           reportgenerator \
             -reports:"TestResults/**/coverage.opencover.xml" \
             -targetdir:"CoverageReport" \
+            -assemblyfilters:"+Api;+Application;+Domain;+Infrastructure;-*Tests" \
             -reporttypes:"HtmlInline_AzurePipelines;TextSummary;Cobertura"
+
+      - name: Upload Coverage Report Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: CoverageReport
+          if-no-files-found: error
 
       - name: Enforce Coverage Threshold (>=80%)
         run: |
