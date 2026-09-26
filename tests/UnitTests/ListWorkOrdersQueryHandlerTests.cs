@@ -24,6 +24,7 @@ public sealed class ListWorkOrdersQueryHandlerTests
         Assert.Equal(newest.Id, result.First().Id);
         Assert.Equal("Alignment", result.First().ServiceJobName);
         Assert.Equal("InProgress", result.First().Status);
+        Assert.Equal(oldest.Id, result.Last().Id);
     }
 
     private sealed class InMemoryServiceOrderJobRepository(IReadOnlyCollection<ServiceOrderJob> items) : IServiceOrderJobRepository

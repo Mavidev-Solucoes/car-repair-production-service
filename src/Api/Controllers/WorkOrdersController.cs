@@ -11,7 +11,6 @@ namespace Api.Controllers;
 
 [ApiController]
 [Route("work-orders")]
-[Route("api/work-orders")]
 public sealed class WorkOrdersController(ISender sender) : ControllerBase
 {
     [HttpPost]

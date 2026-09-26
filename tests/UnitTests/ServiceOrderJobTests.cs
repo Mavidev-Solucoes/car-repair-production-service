@@ -55,6 +55,9 @@ public sealed class ServiceOrderJobTests
         Assert.Equal(ServiceOrderJobStatus.Failed, workOrder.Status);
         Assert.Equal("Missing spare part", workOrder.FailureReason);
         Assert.NotNull(workOrder.FailedAtUtc);
+        Assert.Equal(3, workOrder.StatusHistory.Count);
+        Assert.Equal(ServiceOrderJobStatus.Failed, workOrder.StatusHistory.Last().Status);
+        Assert.Equal("Missing spare part", workOrder.StatusHistory.Last().Reason);
         Assert.Contains(workOrder.DomainEvents, domainEvent => domainEvent is WorkFailedDomainEvent);
     }
 }
