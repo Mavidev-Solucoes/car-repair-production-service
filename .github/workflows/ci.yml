@@ -68,7 +68,7 @@ jobs:
           fi
 
       - name: Restore
-        run: dotnet restore /home/runner/work/car-repair-production-service/car-repair-production-service/CarRepairProductionService.sln
+        run: dotnet restore CarRepairProductionService.sln
 
       - name: Install SonarScanner and ReportGenerator
         run: |
@@ -92,26 +92,26 @@ jobs:
             /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
 
       - name: Build
-        run: dotnet build /home/runner/work/car-repair-production-service/car-repair-production-service/CarRepairProductionService.sln --configuration Release --no-restore
+        run: dotnet build CarRepairProductionService.sln --configuration Release --no-restore
 
       - name: Unit Tests + Coverage (Coverlet)
         run: |
-          dotnet test /home/runner/work/car-repair-production-service/car-repair-production-service/CarRepairProductionService.sln \
+          dotnet test tests/IntegrationTests/IntegrationTests.csproj \
             --configuration Release \
             --no-build \
             --collect:"XPlat Code Coverage;Format=opencover" \
-            --results-directory /home/runner/work/car-repair-production-service/car-repair-production-service/TestResults
+            --results-directory TestResults
 
       - name: Generate Coverage Report (ReportGenerator)
         run: |
           reportgenerator \
-            -reports:"/home/runner/work/car-repair-production-service/car-repair-production-service/TestResults/**/coverage.opencover.xml" \
-            -targetdir:"/home/runner/work/car-repair-production-service/car-repair-production-service/CoverageReport" \
+            -reports:"TestResults/**/coverage.opencover.xml" \
+            -targetdir:"CoverageReport" \
             -reporttypes:"HtmlInline_AzurePipelines;TextSummary;Cobertura"
 
       - name: Enforce Coverage Threshold (>=80%)
         run: |
-          summary_file="/home/runner/work/car-repair-production-service/car-repair-production-service/CoverageReport/Summary.txt"
+          summary_file="CoverageReport/Summary.txt"
           if [ ! -f "$summary_file" ]; then
             echo "Coverage summary not found at $summary_file"
             exit 1
@@ -136,4 +136,4 @@ jobs:
         run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
 
       - name: Docker Build Validation
-        run: docker build --file /home/runner/work/car-repair-production-service/car-repair-production-service/src/Api/Dockerfile --tag car-repair-production-service:ci-validation /home/runner/work/car-repair-production-service/car-repair-production-service
+        run: docker build --file src/Api/Dockerfile --tag car-repair-production-service:ci-validation .
