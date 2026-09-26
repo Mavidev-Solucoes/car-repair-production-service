@@ -98,9 +98,9 @@ jobs:
       - name: Build
         run: dotnet build CarRepairProductionService.sln --configuration Release --no-restore
 
-      - name: Tests + Coverage (IntegrationTests)
+      - name: Tests + Coverage
         run: |
-          dotnet test tests/IntegrationTests/IntegrationTests.csproj \
+          dotnet test CarRepairProductionService.sln \
             --configuration Release \
             --no-build \
             --collect:"XPlat Code Coverage;Format=opencover" \
@@ -113,12 +113,6 @@ jobs:
             -targetdir:"CoverageReport" \
             -assemblyfilters:"+Api;+Application;+Domain;+Infrastructure;-*Tests" \
             -reporttypes:"HtmlInline_AzurePipelines;TextSummary;Cobertura"
-
-      - name: SonarQube Analysis - End (Quality Gate)
-        if: steps.sonar-config.outputs.enabled == 'true' && steps.sonar-begin.outcome == 'success'
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
 
       - name: Upload Coverage Report Artifact
         if: always()
@@ -150,6 +144,12 @@ PY
             echo "Coverage threshold not met. Required >= ${COVERAGE_THRESHOLD}%, actual ${line_coverage}%."
             exit 1
           fi
+
+      - name: SonarQube Analysis - End (Quality Gate)
+        if: steps.sonar-config.outputs.enabled == 'true' && steps.sonar-begin.outcome == 'success'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
 
       - name: Docker Build Validation
         run: docker build --file src/Api/Dockerfile --tag car-repair-production-service:ci-validation .
