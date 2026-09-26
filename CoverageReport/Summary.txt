@@ -1,0 +1,73 @@
+Summary
+  Generated on: 09/26/2026 - 22:04:17
+  Parser: OpenCover
+  Assemblies: 4
+  Classes: 46
+  Files: 40
+  Line coverage: 7.6%
+  Covered lines: 62
+  Uncovered lines: 752
+  Coverable lines: 814
+  Total lines: 1583
+  Branch coverage: 4.4% (7 of 158)
+  Covered branches: 7
+  Total branches: 158
+  Method coverage: 11.6% (18 of 154)
+  Full method coverage: 10.3% (16 of 154)
+  Covered methods: 18
+  Fully covered methods: 16
+  Total methods: 154
+
+Api                                                                                 20.8%
+  Api.Controllers.CreateWorkOrderRequest                                               0%
+  Api.Controllers.FailWorkRequest                                                      0%
+  Api.Controllers.WorkOrdersController                                                 0%
+  Api.Infrastructure.GlobalExceptionHandler                                            0%
+  Program                                                                             95%
+
+Application                                                                          2.3%
+  Application.Common.Behaviors.ValidationBehavior<T1, T2>                              0%
+  Application.Common.Exceptions.BusinessRuleException                                  0%
+  Application.Common.Exceptions.NotFoundException                                      0%
+  Application.Common.Messaging.DomainEventPublisherExtensions                          0%
+  Application.Common.Messaging.MessageEnvelope<T>                                      0%
+  Application.DependencyInjection                                                    100%
+  Application.WorkOrders.Commands.CompleteWork.CompleteWorkCommand                     0%
+  Application.WorkOrders.Commands.CompleteWork.CompleteWorkCommandHandler              0%
+  Application.WorkOrders.Commands.CompleteWork.CompleteWorkCommandValidator            0%
+  Application.WorkOrders.Commands.CreateWorkOrder.CreateWorkOrderCommand               0%
+  Application.WorkOrders.Commands.CreateWorkOrder.CreateWorkOrderCommandHandler        0%
+  Application.WorkOrders.Commands.CreateWorkOrder.CreateWorkOrderCommandValidator      0%
+  Application.WorkOrders.Commands.FailWork.FailWorkCommand                             0%
+  Application.WorkOrders.Commands.FailWork.FailWorkCommandHandler                      0%
+  Application.WorkOrders.Commands.FailWork.FailWorkCommandValidator                    0%
+  Application.WorkOrders.Commands.StartWork.StartWorkCommand                           0%
+  Application.WorkOrders.Commands.StartWork.StartWorkCommandHandler                    0%
+  Application.WorkOrders.Commands.StartWork.StartWorkCommandValidator                  0%
+  Application.WorkOrders.Queries.GetWorkOrderById.GetWorkOrderByIdQuery                0%
+  Application.WorkOrders.Queries.GetWorkOrderById.GetWorkOrderByIdQueryHandler         0%
+  Application.WorkOrders.Queries.GetWorkOrderById.GetWorkOrderByIdQueryValidator       0%
+  Application.WorkOrders.Queries.GetWorkOrderById.WorkOrderDetailsResponse             0%
+  Application.WorkOrders.Queries.GetWorkOrderById.WorkOrderStatusHistoryResponse       0%
+
+Domain                                                                                 0%
+  Domain.Common.AggregateRoot                                                          0%
+  Domain.Entities.ServiceJob                                                           0%
+  Domain.Entities.ServiceOrderJob                                                      0%
+  Domain.Entities.ServiceOrderJobStatusHistory                                         0%
+  Domain.Events.WorkCompletedDomainEvent                                               0%
+  Domain.Events.WorkFailedDomainEvent                                                  0%
+  Domain.Events.WorkOrderCreatedDomainEvent                                            0%
+  Domain.Events.WorkStartedDomainEvent                                                 0%
+
+Infrastructure                                                                       9.4%
+  Infrastructure.DependencyInjection                                                  92%
+  Infrastructure.Messaging.RabbitMqCommandConsumer                                     0%
+  Infrastructure.Messaging.RabbitMqEventPublisher                                      0%
+  Infrastructure.Messaging.RabbitMqSettings                                          100%
+  Infrastructure.Persistence.Documents.ServiceJobDocument                              0%
+  Infrastructure.Persistence.Documents.ServiceOrderJobDocument                         0%
+  Infrastructure.Persistence.Documents.ServiceOrderJobStatusHistoryDocument            0%
+  Infrastructure.Persistence.Mappings.ServiceOrderJobMapper                            0%
+  Infrastructure.Persistence.MongoDbSettings                                         100%
+  Infrastructure.Persistence.Repositories.ServiceOrderJobRepository                    0%
