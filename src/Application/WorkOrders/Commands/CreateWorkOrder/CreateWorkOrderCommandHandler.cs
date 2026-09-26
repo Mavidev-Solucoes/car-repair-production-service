@@ -1,14 +1,15 @@
 using Application.Common.Interfaces;
 using Application.Common.Messaging;
 using Domain.Entities;
-using Domain.Events;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace Application.WorkOrders.Commands.CreateWorkOrder;
 
 public sealed class CreateWorkOrderCommandHandler(
     IServiceOrderJobRepository repository,
-    IEventPublisher eventPublisher)
+    IEventPublisher eventPublisher,
+    ILogger<CreateWorkOrderCommandHandler> logger)
     : IRequestHandler<CreateWorkOrderCommand, Guid>
 {
     public async Task<Guid> Handle(CreateWorkOrderCommand request, CancellationToken cancellationToken)
@@ -18,11 +19,18 @@ public sealed class CreateWorkOrderCommandHandler(
 
         await repository.AddAsync(workOrder, cancellationToken);
 
-        var domainEvent = workOrder.DomainEvents.OfType<WorkOrderCreatedDomainEvent>().LastOrDefault();
-        if (domainEvent is not null)
+        var domainEvents = workOrder.DomainEvents.ToArray();
+        if (domainEvents.Length > 0)
         {
-            await eventPublisher.PublishDomainEventAsync(domainEvent, workOrder.Id, cancellationToken);
-            workOrder.ClearDomainEvents();
+            try
+            {
+                await eventPublisher.PublishDomainEventsAsync(domainEvents, workOrder.Id, cancellationToken);
+                workOrder.ClearDomainEvents();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to publish one or more events for work order {WorkOrderId}.", workOrder.Id);
+            }
         }
 
         return workOrder.Id;

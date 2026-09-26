@@ -15,6 +15,7 @@ public sealed class RabbitMqCommandConsumer(
     private readonly RabbitMqSettings _settings = options.Value;
     private readonly List<IConnection> _connections = [];
     private readonly List<IModel> _channels = [];
+    private readonly List<SemaphoreSlim> _channelLocks = [];
     private readonly object _sync = new();
 
     public Task SubscribeAsync<TCommand>(
@@ -33,6 +34,7 @@ public sealed class RabbitMqCommandConsumer(
         var factory = BuildConnectionFactory();
         var connection = factory.CreateConnection();
         var channel = connection.CreateModel();
+        var channelLock = new SemaphoreSlim(1, 1);
 
         var retryExchangeName = $"{_settings.ExchangeName}.retry";
         var retryQueueName = $"{queueName}.retry";
@@ -49,7 +51,7 @@ public sealed class RabbitMqCommandConsumer(
             autoDelete: false,
             arguments: new Dictionary<string, object>
             {
-                ["x-dead-letter-exchange"] = _settings.DeadLetterExchangeName,
+                ["x-dead-letter-exchange"] = retryExchangeName,
                 ["x-dead-letter-routing-key"] = routingKey
             });
 
@@ -87,53 +89,102 @@ public sealed class RabbitMqCommandConsumer(
                 }
 
                 await onMessage(envelope, cancellationToken);
-                channel.BasicAck(eventArgs.DeliveryTag, false);
+
+                await channelLock.WaitAsync(CancellationToken.None);
+                try
+                {
+                    if (channel.IsOpen)
+                    {
+                        channel.BasicAck(eventArgs.DeliveryTag, false);
+                    }
+                }
+                finally
+                {
+                    channelLock.Release();
+                }
             }
             catch (Exception ex)
             {
                 var retryCount = GetRetryCount(eventArgs.BasicProperties?.Headers);
 
-                if (retryCount < _settings.RetryCount)
+                await channelLock.WaitAsync(CancellationToken.None);
+                try
                 {
-                    var retryProperties = BuildProperties(channel, eventArgs.BasicProperties, retryCount + 1);
-                    channel.BasicPublish(retryExchangeName, routingKey, false, retryProperties, eventArgs.Body);
+                    if (!channel.IsOpen)
+                    {
+                        return;
+                    }
 
-                    logger.LogWarning(
-                        ex,
-                        "Message processing failed for queue {QueueName}. Retrying attempt {RetryAttempt}/{RetryCount}.",
-                        queueName,
-                        retryCount + 1,
-                        _settings.RetryCount);
+                    try
+                    {
+                        if (retryCount < _settings.RetryCount)
+                        {
+                            var retryProperties = BuildProperties(channel, eventArgs.BasicProperties, retryCount + 1);
+                            channel.BasicPublish(retryExchangeName, routingKey, false, retryProperties, eventArgs.Body);
+
+                            logger.LogWarning(
+                                ex,
+                                "Message processing failed for queue {QueueName}. Retrying attempt {RetryAttempt}/{RetryCount}.",
+                                queueName,
+                                retryCount + 1,
+                                _settings.RetryCount);
+                        }
+                        else
+                        {
+                            var deadLetterProperties = BuildProperties(channel, eventArgs.BasicProperties, retryCount);
+                            channel.BasicPublish(_settings.DeadLetterExchangeName, routingKey, false, deadLetterProperties, eventArgs.Body);
+
+                            logger.LogError(
+                                ex,
+                                "Message processing failed for queue {QueueName}. Sent to dead-letter queue after {RetryCount} retries.",
+                                queueName,
+                                _settings.RetryCount);
+                        }
+
+                        channel.BasicAck(eventArgs.DeliveryTag, false);
+                    }
+                    catch (Exception publishEx)
+                    {
+                        logger.LogError(
+                            publishEx,
+                            "Failed to republish failed message for queue {QueueName}. Message will be requeued.",
+                            queueName);
+
+                        channel.BasicNack(eventArgs.DeliveryTag, false, true);
+                    }
                 }
-                else
+                finally
                 {
-                    var deadLetterProperties = BuildProperties(channel, eventArgs.BasicProperties, retryCount);
-                    channel.BasicPublish(_settings.DeadLetterExchangeName, routingKey, false, deadLetterProperties, eventArgs.Body);
-
-                    logger.LogError(
-                        ex,
-                        "Message processing failed for queue {QueueName}. Sent to dead-letter queue after {RetryCount} retries.",
-                        queueName,
-                        _settings.RetryCount);
+                    channelLock.Release();
                 }
-
-                channel.BasicAck(eventArgs.DeliveryTag, false);
             }
         };
 
         var consumerTag = channel.BasicConsume(queueName, false, consumer);
         cancellationToken.Register(() =>
         {
-            if (channel.IsOpen)
+            _ = Task.Run(async () =>
             {
-                channel.BasicCancel(consumerTag);
-            }
+                await channelLock.WaitAsync(CancellationToken.None);
+                try
+                {
+                    if (channel.IsOpen)
+                    {
+                        channel.BasicCancel(consumerTag);
+                    }
+                }
+                finally
+                {
+                    channelLock.Release();
+                }
+            });
         });
 
         lock (_sync)
         {
             _connections.Add(connection);
             _channels.Add(channel);
+            _channelLocks.Add(channelLock);
         }
 
         logger.LogInformation(
@@ -169,8 +220,14 @@ public sealed class RabbitMqCommandConsumer(
                 connection.Dispose();
             }
 
+            foreach (var channelLock in _channelLocks)
+            {
+                channelLock.Dispose();
+            }
+
             _channels.Clear();
             _connections.Clear();
+            _channelLocks.Clear();
         }
     }
 
