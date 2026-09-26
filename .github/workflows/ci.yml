@@ -145,11 +145,11 @@ PY
             exit 1
           fi
 
+      - name: Docker Build Validation
+        run: docker build --file src/Api/Dockerfile --tag car-repair-production-service:ci-validation .
+
       - name: SonarCloud Analysis - End (Quality Gate)
         if: always() && steps.sonar-config.outputs.enabled == 'true' && steps.sonar-begin.outcome == 'success'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
-
-      - name: Docker Build Validation
-        run: docker build --file src/Api/Dockerfile --tag car-repair-production-service:ci-validation .
