@@ -86,6 +86,9 @@ public sealed class ServiceOrderJob : AggregateRoot
 
         Status = ServiceOrderJobStatus.InProgress;
         StartedAtUtc = DateTime.UtcNow;
+        CompletedAtUtc = null;
+        FailedAtUtc = null;
+        FailureReason = null;
         Version++;
         AddStatusHistory(Status);
         AddDomainEvent(new WorkStartedDomainEvent(Id));
@@ -101,6 +104,7 @@ public sealed class ServiceOrderJob : AggregateRoot
         Status = ServiceOrderJobStatus.Completed;
         CompletedAtUtc = DateTime.UtcNow;
         FailedAtUtc = null;
+        FailureReason = null;
         Version++;
         AddStatusHistory(Status);
         AddDomainEvent(new WorkCompletedDomainEvent(Id));

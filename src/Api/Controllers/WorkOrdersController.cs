@@ -25,6 +25,7 @@ public sealed class WorkOrdersController(ISender sender) : ControllerBase
 
     [HttpGet("{workOrderId:guid}")]
     [ProducesResponseType(typeof(WorkOrderDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetWorkOrderById(Guid workOrderId, CancellationToken cancellationToken)
     {
         var response = await sender.Send(new GetWorkOrderByIdQuery(workOrderId), cancellationToken);
@@ -33,6 +34,8 @@ public sealed class WorkOrdersController(ISender sender) : ControllerBase
 
     [HttpPost("{workOrderId:guid}/start")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> StartWork(Guid workOrderId, CancellationToken cancellationToken)
     {
         await sender.Send(new StartWorkCommand(workOrderId), cancellationToken);
@@ -41,6 +44,8 @@ public sealed class WorkOrdersController(ISender sender) : ControllerBase
 
     [HttpPost("{workOrderId:guid}/complete")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CompleteWork(Guid workOrderId, CancellationToken cancellationToken)
     {
         await sender.Send(new CompleteWorkCommand(workOrderId), cancellationToken);
@@ -49,6 +54,8 @@ public sealed class WorkOrdersController(ISender sender) : ControllerBase
 
     [HttpPost("{workOrderId:guid}/fail")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> FailWork(Guid workOrderId, [FromBody] FailWorkRequest request, CancellationToken cancellationToken)
     {
         await sender.Send(new FailWorkCommand(workOrderId, request.Reason), cancellationToken);
