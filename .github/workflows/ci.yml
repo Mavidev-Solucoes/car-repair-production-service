@@ -146,7 +146,7 @@ PY
           fi
 
       - name: SonarQube Analysis - End (Quality Gate)
-        if: always() && steps.sonar-config.outputs.enabled == 'true' && steps.sonar-begin.outcome == 'success'
+        if: steps.sonar-config.outputs.enabled == 'true' && steps.sonar-begin.outcome == 'success'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
