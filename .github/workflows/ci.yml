@@ -79,6 +79,7 @@ jobs:
           echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
 
       - name: SonarQube Analysis - Begin
+        id: sonar-begin
         if: steps.sonar-config.outputs.enabled == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -123,27 +124,29 @@ jobs:
 
       - name: Enforce Coverage Threshold (>=80%)
         run: |
-          summary_file="CoverageReport/Summary.txt"
-          if [ ! -f "$summary_file" ]; then
-            echo "Coverage summary not found at $summary_file"
+          cobertura_file="CoverageReport/Cobertura.xml"
+          if [ ! -f "$cobertura_file" ]; then
+            echo "Cobertura report not found at $cobertura_file"
             exit 1
           fi
 
-          line_coverage=$(grep -Eo 'Line coverage: [0-9]+(\.[0-9]+)?%' "$summary_file" | head -n1 | awk '{print $3}' | tr -d '%')
-          if [ -z "$line_coverage" ]; then
-            echo "Could not parse line coverage from ReportGenerator summary."
-            cat "$summary_file"
-            exit 1
-          fi
+          line_coverage=$(python3 - <<'PY'
+import xml.etree.ElementTree as ET
 
-          echo "Line coverage: ${line_coverage}%"
+root = ET.parse("CoverageReport/Cobertura.xml").getroot()
+line_rate = float(root.attrib.get("line-rate", "0"))
+print(f"{line_rate * 100:.2f}")
+PY
+)
+
+          echo "Line coverage (production assemblies): ${line_coverage}%"
           if ! awk "BEGIN {exit !($line_coverage >= $COVERAGE_THRESHOLD)}"; then
             echo "Coverage threshold not met. Required >= ${COVERAGE_THRESHOLD}%, actual ${line_coverage}%."
             exit 1
           fi
 
       - name: SonarQube Analysis - End (Quality Gate)
-        if: steps.sonar-config.outputs.enabled == 'true'
+        if: always() && steps.sonar-config.outputs.enabled == 'true' && steps.sonar-begin.outcome == 'success'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
