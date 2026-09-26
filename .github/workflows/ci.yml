@@ -78,7 +78,7 @@ jobs:
           dotnet tool update --global dotnet-sonarscanner --version 6.*
           echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
 
-      - name: SonarQube Analysis - Begin
+      - name: SonarCloud Analysis - Begin
         id: sonar-begin
         if: steps.sonar-config.outputs.enabled == 'true'
         env:
@@ -145,8 +145,8 @@ PY
             exit 1
           fi
 
-      - name: SonarQube Analysis - End (Quality Gate)
-        if: steps.sonar-config.outputs.enabled == 'true' && steps.sonar-begin.outcome == 'success'
+      - name: SonarCloud Analysis - End (Quality Gate)
+        if: always() && steps.sonar-config.outputs.enabled == 'true' && steps.sonar-begin.outcome == 'success'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
