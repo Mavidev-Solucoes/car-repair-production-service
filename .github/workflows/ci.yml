@@ -50,33 +50,36 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Validate SonarCloud configuration
+      - name: Configure SonarCloud execution
+        id: sonar-config
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
         run: |
-          missing=0
-          for secret_name in SONAR_TOKEN SONAR_PROJECT_KEY SONAR_ORGANIZATION; do
-            if [ -z "${!secret_name}" ]; then
-              echo "Missing required secret: ${secret_name}"
-              missing=1
-            fi
-          done
-          if [ "$missing" -ne 0 ]; then
-            exit 1
+          if [ -n "${SONAR_TOKEN}" ] && [ -n "${SONAR_PROJECT_KEY}" ] && [ -n "${SONAR_ORGANIZATION}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "SonarCloud secrets are not available. Sonar analysis will be skipped for this run."
           fi
 
       - name: Restore
         run: dotnet restore CarRepairProductionService.sln
 
-      - name: Install SonarScanner and ReportGenerator
+      - name: Install ReportGenerator
         run: |
-          dotnet tool update --global dotnet-sonarscanner --version 6.*
           dotnet tool update --global dotnet-reportgenerator-globaltool --version 5.*
           echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
 
+      - name: Install SonarScanner
+        if: steps.sonar-config.outputs.enabled == 'true'
+        run: |
+          dotnet tool update --global dotnet-sonarscanner --version 6.*
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
       - name: SonarQube Analysis - Begin
+        if: steps.sonar-config.outputs.enabled == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
@@ -96,7 +99,7 @@ jobs:
 
       - name: Unit Tests + Coverage (Coverlet)
         run: |
-          dotnet test tests/IntegrationTests/IntegrationTests.csproj \
+          dotnet test CarRepairProductionService.sln \
             --configuration Release \
             --no-build \
             --collect:"XPlat Code Coverage;Format=opencover" \
@@ -131,6 +134,7 @@ jobs:
           fi
 
       - name: SonarQube Analysis - End (Quality Gate)
+        if: steps.sonar-config.outputs.enabled == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
