@@ -3,18 +3,14 @@ using Application.Common.Interfaces;
 using Domain.Entities;
 using Infrastructure.Persistence.Documents;
 using Infrastructure.Persistence.Mappings;
-using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 
 namespace Infrastructure.Persistence.Repositories;
 
 internal sealed class ServiceOrderJobRepository(
-    IMongoClient mongoClient,
-    IOptions<MongoDbSettings> mongoDbSettings) : IServiceOrderJobRepository
+    IMongoDbContext mongoDbContext) : IServiceOrderJobRepository
 {
-    private readonly IMongoCollection<ServiceOrderJobDocument> _collection = mongoClient
-        .GetDatabase(mongoDbSettings.Value.DatabaseName)
-        .GetCollection<ServiceOrderJobDocument>(mongoDbSettings.Value.ServiceOrderJobsCollectionName);
+    private readonly IMongoCollection<ServiceOrderJobDocument> _collection = mongoDbContext.ServiceOrderJobs;
 
     public async Task AddAsync(ServiceOrderJob serviceOrderJob, CancellationToken cancellationToken)
     {
@@ -30,6 +26,16 @@ internal sealed class ServiceOrderJobRepository(
             .FirstOrDefaultAsync(cancellationToken);
 
         return document is null ? null : ServiceOrderJobMapper.ToEntity(document);
+    }
+
+    public async Task<IReadOnlyCollection<ServiceOrderJob>> ListAsync(CancellationToken cancellationToken)
+    {
+        var documents = await _collection
+            .Find(_ => true)
+            .SortByDescending(item => item.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        return documents.Select(ServiceOrderJobMapper.ToEntity).ToList();
     }
 
     public async Task UpdateAsync(ServiceOrderJob serviceOrderJob, CancellationToken cancellationToken)

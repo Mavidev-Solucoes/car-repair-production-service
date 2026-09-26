@@ -2,6 +2,7 @@ using Application.Common.Interfaces;
 using Application.Common.Messaging;
 using Infrastructure.Messaging;
 using Infrastructure.Persistence;
+using Infrastructure.Persistence.Mappings;
 using Infrastructure.Persistence.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +39,8 @@ public static class DependencyInjection
             return new MongoClient(settings.ConnectionString);
         });
 
+        services.AddSingleton<IMongoCollectionMapping, ServiceOrderJobCollectionMapping>();
+        services.AddScoped<IMongoDbContext, MongoDbContext>();
         services.AddScoped<IServiceOrderJobRepository, ServiceOrderJobRepository>();
 
         services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();

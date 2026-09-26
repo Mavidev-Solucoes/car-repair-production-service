@@ -2,13 +2,15 @@ using Application.WorkOrders.Commands.CompleteWork;
 using Application.WorkOrders.Commands.CreateWorkOrder;
 using Application.WorkOrders.Commands.FailWork;
 using Application.WorkOrders.Commands.StartWork;
-using Application.WorkOrders.Queries.GetWorkOrderById;
+using Application.WorkOrders.Queries.GetWorkOrder;
+using Application.WorkOrders.Queries.ListWorkOrders;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
 
 [ApiController]
+[Route("work-orders")]
 [Route("api/work-orders")]
 public sealed class WorkOrdersController(ISender sender) : ControllerBase
 {
@@ -23,12 +25,20 @@ public sealed class WorkOrdersController(ISender sender) : ControllerBase
         return CreatedAtAction(nameof(GetWorkOrderById), new { workOrderId = workOrderId }, new { id = workOrderId });
     }
 
+    [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyCollection<WorkOrderSummaryResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListWorkOrders(CancellationToken cancellationToken)
+    {
+        var response = await sender.Send(new ListWorkOrdersQuery(), cancellationToken);
+        return Ok(response);
+    }
+
     [HttpGet("{workOrderId:guid}")]
     [ProducesResponseType(typeof(WorkOrderDetailsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetWorkOrderById(Guid workOrderId, CancellationToken cancellationToken)
     {
-        var response = await sender.Send(new GetWorkOrderByIdQuery(workOrderId), cancellationToken);
+        var response = await sender.Send(new GetWorkOrderQuery(workOrderId), cancellationToken);
         return Ok(response);
     }
 

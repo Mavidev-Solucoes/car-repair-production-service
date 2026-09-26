@@ -1,10 +1,10 @@
 using FluentValidation;
 
-namespace Application.WorkOrders.Queries.GetWorkOrderById;
+namespace Application.WorkOrders.Queries.GetWorkOrder;
 
-public sealed class GetWorkOrderByIdQueryValidator : AbstractValidator<GetWorkOrderByIdQuery>
+public sealed class GetWorkOrderQueryValidator : AbstractValidator<GetWorkOrderQuery>
 {
-    public GetWorkOrderByIdQueryValidator()
+    public GetWorkOrderQueryValidator()
     {
         RuleFor(x => x.WorkOrderId).NotEmpty();
     }

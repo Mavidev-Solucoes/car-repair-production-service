@@ -8,5 +8,7 @@ public interface IServiceOrderJobRepository
 
     Task<ServiceOrderJob?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
+    Task<IReadOnlyCollection<ServiceOrderJob>> ListAsync(CancellationToken cancellationToken);
+
     Task UpdateAsync(ServiceOrderJob serviceOrderJob, CancellationToken cancellationToken);
 }
