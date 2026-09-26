@@ -1,3 +1,4 @@
+using Application.Common.Exceptions;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
@@ -27,6 +28,38 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
             };
 
             httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+            httpContext.Response.ContentType = "application/problem+json";
+
+            await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+            return true;
+        }
+
+        if (exception is NotFoundException)
+        {
+            var problemDetails = new ProblemDetails
+            {
+                Title = exception.Message,
+                Status = StatusCodes.Status404NotFound,
+                Type = "https://www.rfc-editor.org/rfc/rfc9110.html#name-404-not-found"
+            };
+
+            httpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+            httpContext.Response.ContentType = "application/problem+json";
+
+            await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+            return true;
+        }
+
+        if (exception is BusinessRuleException)
+        {
+            var problemDetails = new ProblemDetails
+            {
+                Title = exception.Message,
+                Status = StatusCodes.Status409Conflict,
+                Type = "https://www.rfc-editor.org/rfc/rfc9110.html#name-409-conflict"
+            };
+
+            httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
             httpContext.Response.ContentType = "application/problem+json";
 
             await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
