@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-analyze:
+    name: Restore, Build, Test, Coverage, SonarCloud, Docker Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DOTNET_VERSION: 8.0.x
+      COVERAGE_THRESHOLD: "80"
+      SONAR_HOST_URL: https://sonarcloud.io
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Java (required by SonarScanner)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Validate SonarCloud configuration
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+        run: |
+          missing=0
+          for secret_name in SONAR_TOKEN SONAR_PROJECT_KEY SONAR_ORGANIZATION; do
+            if [ -z "${!secret_name}" ]; then
+              echo "Missing required secret: ${secret_name}"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Restore
+        run: dotnet restore /home/runner/work/car-repair-production-service/car-repair-production-service/CarRepairProductionService.sln
+
+      - name: Install SonarScanner and ReportGenerator
+        run: |
+          dotnet tool update --global dotnet-sonarscanner --version 6.*
+          dotnet tool update --global dotnet-reportgenerator-globaltool --version 5.*
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: SonarQube Analysis - Begin
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+        run: |
+          dotnet sonarscanner begin \
+            /k:"${SONAR_PROJECT_KEY}" \
+            /o:"${SONAR_ORGANIZATION}" \
+            /d:sonar.token="${SONAR_TOKEN}" \
+            /d:sonar.host.url="${SONAR_HOST_URL}" \
+            /d:sonar.qualitygate.wait=true \
+            /d:sonar.qualitygate.timeout=300 \
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
+
+      - name: Build
+        run: dotnet build /home/runner/work/car-repair-production-service/car-repair-production-service/CarRepairProductionService.sln --configuration Release --no-restore
+
+      - name: Unit Tests + Coverage (Coverlet)
+        run: |
+          dotnet test /home/runner/work/car-repair-production-service/car-repair-production-service/CarRepairProductionService.sln \
+            --configuration Release \
+            --no-build \
+            --collect:"XPlat Code Coverage;Format=opencover" \
+            --results-directory /home/runner/work/car-repair-production-service/car-repair-production-service/TestResults
+
+      - name: Generate Coverage Report (ReportGenerator)
+        run: |
+          reportgenerator \
+            -reports:"/home/runner/work/car-repair-production-service/car-repair-production-service/TestResults/**/coverage.opencover.xml" \
+            -targetdir:"/home/runner/work/car-repair-production-service/car-repair-production-service/CoverageReport" \
+            -reporttypes:"HtmlInline_AzurePipelines;TextSummary;Cobertura"
+
+      - name: Enforce Coverage Threshold (>=80%)
+        run: |
+          summary_file="/home/runner/work/car-repair-production-service/car-repair-production-service/CoverageReport/Summary.txt"
+          if [ ! -f "$summary_file" ]; then
+            echo "Coverage summary not found at $summary_file"
+            exit 1
+          fi
+
+          line_coverage=$(grep -Eo 'Line coverage: [0-9]+(\.[0-9]+)?%' "$summary_file" | head -n1 | awk '{print $3}' | tr -d '%')
+          if [ -z "$line_coverage" ]; then
+            echo "Could not parse line coverage from ReportGenerator summary."
+            cat "$summary_file"
+            exit 1
+          fi
+
+          echo "Line coverage: ${line_coverage}%"
+          if ! awk "BEGIN {exit !($line_coverage >= $COVERAGE_THRESHOLD)}"; then
+            echo "Coverage threshold not met. Required >= ${COVERAGE_THRESHOLD}%, actual ${line_coverage}%."
+            exit 1
+          fi
+
+      - name: SonarQube Analysis - End (Quality Gate)
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
+
+      - name: Docker Build Validation
+        run: docker build --file /home/runner/work/car-repair-production-service/car-repair-production-service/src/Api/Dockerfile --tag car-repair-production-service:ci-validation /home/runner/work/car-repair-production-service/car-repair-production-service
