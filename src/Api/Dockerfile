@@ -15,6 +15,7 @@ WORKDIR "/src/src/Api"
 RUN dotnet build "Api.csproj" -c Release -o /app/build
 
 FROM build AS publish
+WORKDIR "/src/src/Api"
 RUN dotnet publish "Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
