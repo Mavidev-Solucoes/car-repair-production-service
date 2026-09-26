@@ -23,7 +23,7 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
             {
                 Title = "Validation failed.",
                 Status = StatusCodes.Status400BadRequest,
-                Type = "https://tools.ietf.org/html/rfc9110#section-15.5.1"
+                Type = "https://www.rfc-editor.org/rfc/rfc9110.html#name-400-bad-request"
             };
 
             httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -39,7 +39,7 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
         {
             Title = "An unexpected error occurred.",
             Status = StatusCodes.Status500InternalServerError,
-            Type = "https://tools.ietf.org/html/rfc9110#section-15.6.1"
+            Type = "https://www.rfc-editor.org/rfc/rfc9110.html#name-500-internal-server-error"
         };
 
         httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
