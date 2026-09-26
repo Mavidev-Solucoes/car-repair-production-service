@@ -7,7 +7,7 @@ namespace Application.WorkOrders.Commands.FailWork;
 public sealed class FailWorkCommandHandler(IServiceOrderJobRepository repository)
     : IRequestHandler<FailWorkCommand>
 {
-    public async Task Handle(FailWorkCommand request, CancellationToken cancellationToken)
+    public async Task<Unit> Handle(FailWorkCommand request, CancellationToken cancellationToken)
     {
         var workOrder = await repository.GetByIdAsync(request.WorkOrderId, cancellationToken);
 
@@ -26,5 +26,6 @@ public sealed class FailWorkCommandHandler(IServiceOrderJobRepository repository
         }
 
         await repository.UpdateAsync(workOrder, cancellationToken);
+        return Unit.Value;
     }
 }

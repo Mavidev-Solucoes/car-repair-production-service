@@ -7,7 +7,7 @@ namespace Application.WorkOrders.Commands.CompleteWork;
 public sealed class CompleteWorkCommandHandler(IServiceOrderJobRepository repository)
     : IRequestHandler<CompleteWorkCommand>
 {
-    public async Task Handle(CompleteWorkCommand request, CancellationToken cancellationToken)
+    public async Task<Unit> Handle(CompleteWorkCommand request, CancellationToken cancellationToken)
     {
         var workOrder = await repository.GetByIdAsync(request.WorkOrderId, cancellationToken);
 
@@ -26,5 +26,6 @@ public sealed class CompleteWorkCommandHandler(IServiceOrderJobRepository reposi
         }
 
         await repository.UpdateAsync(workOrder, cancellationToken);
+        return Unit.Value;
     }
 }

@@ -7,7 +7,7 @@ namespace Application.WorkOrders.Commands.StartWork;
 public sealed class StartWorkCommandHandler(IServiceOrderJobRepository repository)
     : IRequestHandler<StartWorkCommand>
 {
-    public async Task Handle(StartWorkCommand request, CancellationToken cancellationToken)
+    public async Task<Unit> Handle(StartWorkCommand request, CancellationToken cancellationToken)
     {
         var workOrder = await repository.GetByIdAsync(request.WorkOrderId, cancellationToken);
 
@@ -26,5 +26,6 @@ public sealed class StartWorkCommandHandler(IServiceOrderJobRepository repositor
         }
 
         await repository.UpdateAsync(workOrder, cancellationToken);
+        return Unit.Value;
     }
 }
