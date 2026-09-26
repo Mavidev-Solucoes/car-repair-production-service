@@ -1,10 +1,14 @@
 using Application.Common.Interfaces;
+using Application.Common.Messaging;
 using Domain.Entities;
+using Domain.Events;
 using MediatR;
 
 namespace Application.WorkOrders.Commands.CreateWorkOrder;
 
-public sealed class CreateWorkOrderCommandHandler(IServiceOrderJobRepository repository)
+public sealed class CreateWorkOrderCommandHandler(
+    IServiceOrderJobRepository repository,
+    IEventPublisher eventPublisher)
     : IRequestHandler<CreateWorkOrderCommand, Guid>
 {
     public async Task<Guid> Handle(CreateWorkOrderCommand request, CancellationToken cancellationToken)
@@ -13,6 +17,13 @@ public sealed class CreateWorkOrderCommandHandler(IServiceOrderJobRepository rep
         var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), serviceJob);
 
         await repository.AddAsync(workOrder, cancellationToken);
+
+        var domainEvent = workOrder.DomainEvents.OfType<WorkOrderCreatedDomainEvent>().LastOrDefault();
+        if (domainEvent is not null)
+        {
+            await eventPublisher.PublishDomainEventAsync(domainEvent, workOrder.Id, cancellationToken);
+            workOrder.ClearDomainEvents();
+        }
 
         return workOrder.Id;
     }
