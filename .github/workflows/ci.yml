@@ -1,0 +1,178 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-analyze:
+    name: Restore, Build, Test, Coverage, SonarCloud, Docker Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DOTNET_VERSION: 8.0.x
+      COVERAGE_THRESHOLD: "80"
+      SONAR_HOST_URL: https://sonarcloud.io
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Java (required by SonarScanner)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props', '**/*.targets') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Configure SonarCloud execution
+        id: sonar-config
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+        run: |
+          if [ -n "${SONAR_TOKEN}" ] && [ -n "${SONAR_PROJECT_KEY}" ] && [ -n "${SONAR_ORGANIZATION}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "SonarCloud secrets are not available. Sonar analysis will be skipped for this run."
+          fi
+
+      - name: Restore
+        run: dotnet restore CarRepairProductionService.sln
+
+      - name: Install ReportGenerator
+        run: |
+          dotnet tool update --global dotnet-reportgenerator-globaltool --version 5.*
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Install SonarScanner
+        if: steps.sonar-config.outputs.enabled == 'true'
+        run: |
+          dotnet tool update --global dotnet-sonarscanner --version 6.*
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: SonarCloud Analysis - Begin
+        id: sonar-begin
+        if: steps.sonar-config.outputs.enabled == 'true'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+        run: |
+          dotnet sonarscanner begin \
+            /k:"${SONAR_PROJECT_KEY}" \
+            /o:"${SONAR_ORGANIZATION}" \
+            /d:sonar.token="${SONAR_TOKEN}" \
+            /d:sonar.host.url="${SONAR_HOST_URL}" \
+            /d:sonar.qualitygate.wait=true \
+            /d:sonar.qualitygate.timeout=300 \
+            /d:sonar.cs.opencover.reportsPaths="${GITHUB_WORKSPACE}/TestResults/**/coverage.opencover.xml"
+
+      - name: Build
+        run: dotnet build CarRepairProductionService.sln --configuration Release --no-restore
+
+      - name: Tests + Coverage
+        run: |
+          mapfile -t test_projects < <(find tests -name '*.csproj' | sort)
+          if [ "${#test_projects[@]}" -eq 0 ]; then
+            echo "No test projects found under ./tests."
+            exit 1
+          fi
+
+          configured_projects=()
+          for test_project in "${test_projects[@]}"; do
+            if grep -qi 'PackageReference Include="coverlet.collector"' "$test_project"; then
+              configured_projects+=("$test_project")
+            else
+              echo "Skipping $test_project (coverlet.collector not configured)."
+            fi
+          done
+
+          if [ "${#configured_projects[@]}" -eq 0 ]; then
+            echo "No test projects with coverlet.collector configured."
+            exit 1
+          fi
+
+          for test_project in "${configured_projects[@]}"; do
+            project_name="$(basename "$test_project" .csproj)"
+            dotnet test "$test_project" \
+              --configuration Release \
+              --no-build \
+              --collect:"XPlat Code Coverage;Format=opencover" \
+              --results-directory "TestResults/${project_name}"
+          done
+
+      - name: Generate Coverage Report (ReportGenerator)
+        run: |
+          reportgenerator \
+            -reports:"TestResults/**/coverage.opencover.xml" \
+            -targetdir:"CoverageReport" \
+            -assemblyfilters:"+Api;+Application;+Domain;+Infrastructure;-*Tests" \
+            -reporttypes:"HtmlInline_AzurePipelines;TextSummary;Cobertura"
+
+      - name: Upload Coverage Report Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: CoverageReport
+          if-no-files-found: error
+
+      - name: Enforce Coverage Threshold (>=80%)
+        run: |
+          cobertura_file="CoverageReport/Cobertura.xml"
+          if [ ! -f "$cobertura_file" ]; then
+            echo "Cobertura report not found at $cobertura_file"
+            exit 1
+          fi
+
+          line_coverage=$(python3 - <<'PY'
+import xml.etree.ElementTree as ET
+
+root = ET.parse("CoverageReport/Cobertura.xml").getroot()
+line_rate = float(root.attrib.get("line-rate", "0"))
+print(f"{line_rate * 100:.2f}")
+PY
+)
+
+          echo "Line coverage (production assemblies): ${line_coverage}%"
+          if ! awk "BEGIN {exit !($line_coverage >= $COVERAGE_THRESHOLD)}"; then
+            echo "Coverage threshold not met. Required >= ${COVERAGE_THRESHOLD}%, actual ${line_coverage}%."
+            exit 1
+          fi
+
+      - name: Docker Build Validation
+        run: docker build --file src/Api/Dockerfile --target final --tag car-repair-production-service:ci-validation .
+
+      - name: SonarCloud Analysis - End (Quality Gate)
+        if: steps.sonar-config.outputs.enabled == 'true' && steps.sonar-begin.outcome == 'success'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
