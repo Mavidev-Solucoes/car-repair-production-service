@@ -1,4 +1,6 @@
 using Application.Common.Interfaces;
+using Application.Common.Messaging;
+using Infrastructure.Messaging;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.Repositories;
 using Microsoft.Extensions.Configuration;
@@ -19,6 +21,17 @@ public static class DependencyInjection
             .Validate(settings => !string.IsNullOrWhiteSpace(settings.DatabaseName), "MongoDb:DatabaseName is required.")
             .ValidateOnStart();
 
+        services
+            .AddOptions<RabbitMqSettings>()
+            .Bind(configuration.GetSection(RabbitMqSettings.SectionName))
+            .Validate(settings => !settings.Enabled || !string.IsNullOrWhiteSpace(settings.HostName), "RabbitMq:HostName is required when enabled.")
+            .Validate(settings => !settings.Enabled || settings.Port > 0, "RabbitMq:Port must be greater than zero when enabled.")
+            .Validate(settings => !settings.Enabled || !string.IsNullOrWhiteSpace(settings.ExchangeName), "RabbitMq:ExchangeName is required when enabled.")
+            .Validate(settings => !settings.Enabled || !string.IsNullOrWhiteSpace(settings.DeadLetterExchangeName), "RabbitMq:DeadLetterExchangeName is required when enabled.")
+            .Validate(settings => !settings.Enabled || settings.RetryCount >= 0, "RabbitMq:RetryCount must be zero or greater when enabled.")
+            .Validate(settings => !settings.Enabled || settings.RetryDelayMilliseconds > 0, "RabbitMq:RetryDelayMilliseconds must be greater than zero when enabled.")
+            .ValidateOnStart();
+
         services.AddSingleton<IMongoClient>(serviceProvider =>
         {
             var settings = serviceProvider.GetRequiredService<IOptions<MongoDbSettings>>().Value;
@@ -26,6 +39,9 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IServiceOrderJobRepository, ServiceOrderJobRepository>();
+
+        services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
+        services.AddSingleton<ICommandConsumer, RabbitMqCommandConsumer>();
 
         return services;
     }
