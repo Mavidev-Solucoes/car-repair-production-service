@@ -93,12 +93,12 @@ jobs:
             /d:sonar.host.url="${SONAR_HOST_URL}" \
             /d:sonar.qualitygate.wait=true \
             /d:sonar.qualitygate.timeout=300 \
-            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
+            /d:sonar.cs.opencover.reportsPaths="${GITHUB_WORKSPACE}/TestResults/**/coverage.opencover.xml"
 
       - name: Build
         run: dotnet build CarRepairProductionService.sln --configuration Release --no-restore
 
-      - name: Unit Tests + Coverage (Coverlet)
+      - name: Tests + Coverage (Coverlet)
         run: |
           dotnet test CarRepairProductionService.sln \
             --configuration Release \
