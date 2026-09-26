@@ -36,6 +36,8 @@ public sealed class ServiceOrderJob : AggregateRoot
 
     public string? FailureReason { get; private set; }
 
+    public long Version { get; private set; }
+
     public IReadOnlyCollection<ServiceOrderJobStatusHistory> StatusHistory => _statusHistory.AsReadOnly();
 
     public static ServiceOrderJob Create(Guid id, ServiceJob serviceJob)
@@ -51,6 +53,7 @@ public sealed class ServiceOrderJob : AggregateRoot
         DateTime? startedAtUtc,
         DateTime? completedAtUtc,
         string? failureReason,
+        long version,
         IReadOnlyCollection<ServiceOrderJobStatusHistory> statusHistory)
     {
         var workOrder = new ServiceOrderJob
@@ -61,7 +64,8 @@ public sealed class ServiceOrderJob : AggregateRoot
             CreatedAtUtc = createdAtUtc,
             StartedAtUtc = startedAtUtc,
             CompletedAtUtc = completedAtUtc,
-            FailureReason = failureReason
+            FailureReason = failureReason,
+            Version = version
         };
 
         workOrder._statusHistory.AddRange(statusHistory);
@@ -78,6 +82,7 @@ public sealed class ServiceOrderJob : AggregateRoot
 
         Status = ServiceOrderJobStatus.InProgress;
         StartedAtUtc = DateTime.UtcNow;
+        Version++;
         AddStatusHistory(Status);
         AddDomainEvent(new WorkStartedDomainEvent(Id));
     }
@@ -91,6 +96,7 @@ public sealed class ServiceOrderJob : AggregateRoot
 
         Status = ServiceOrderJobStatus.Completed;
         CompletedAtUtc = DateTime.UtcNow;
+        Version++;
         AddStatusHistory(Status);
         AddDomainEvent(new WorkCompletedDomainEvent(Id));
     }
@@ -105,6 +111,7 @@ public sealed class ServiceOrderJob : AggregateRoot
         FailureReason = reason;
         Status = ServiceOrderJobStatus.Failed;
         CompletedAtUtc = DateTime.UtcNow;
+        Version++;
         AddStatusHistory(Status, reason);
         AddDomainEvent(new WorkFailedDomainEvent(Id, reason));
     }

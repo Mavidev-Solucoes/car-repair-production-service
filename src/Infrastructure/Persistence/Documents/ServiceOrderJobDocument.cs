@@ -16,6 +16,8 @@ internal sealed class ServiceOrderJobDocument
 
     public string? FailureReason { get; set; }
 
+    public long Version { get; set; }
+
     public List<ServiceOrderJobStatusHistoryDocument> StatusHistory { get; set; } = [];
 }
 

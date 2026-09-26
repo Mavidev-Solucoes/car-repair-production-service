@@ -1,5 +1,4 @@
 using Application.Common.Interfaces;
-using Infrastructure.Messaging;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.Repositories;
 using Microsoft.Extensions.Configuration;
@@ -27,7 +26,6 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IServiceOrderJobRepository, ServiceOrderJobRepository>();
-        services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
 
         return services;
     }

@@ -2,6 +2,7 @@ using Application.WorkOrders.Commands.CompleteWork;
 using Application.WorkOrders.Commands.CreateWorkOrder;
 using Application.WorkOrders.Commands.FailWork;
 using Application.WorkOrders.Commands.StartWork;
+using Application.WorkOrders.Queries.GetWorkOrderById;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -19,7 +20,15 @@ public sealed class WorkOrdersController(ISender sender) : ControllerBase
             new CreateWorkOrderCommand(request.ServiceJobId, request.ServiceJobName, request.ServiceJobDescription),
             cancellationToken);
 
-        return CreatedAtAction(nameof(CreateWorkOrder), new { id = workOrderId }, new { id = workOrderId });
+        return CreatedAtAction(nameof(GetWorkOrderById), new { workOrderId }, new { id = workOrderId });
+    }
+
+    [HttpGet("{workOrderId:guid}")]
+    [ProducesResponseType(typeof(WorkOrderDetailsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetWorkOrderById(Guid workOrderId, CancellationToken cancellationToken)
+    {
+        var response = await sender.Send(new GetWorkOrderByIdQuery(workOrderId), cancellationToken);
+        return Ok(response);
     }
 
     [HttpPost("{workOrderId:guid}/start")]

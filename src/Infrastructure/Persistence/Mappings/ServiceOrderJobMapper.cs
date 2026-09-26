@@ -22,6 +22,7 @@ internal static class ServiceOrderJobMapper
             StartedAtUtc = entity.StartedAtUtc,
             CompletedAtUtc = entity.CompletedAtUtc,
             FailureReason = entity.FailureReason,
+            Version = entity.Version,
             StatusHistory = entity.StatusHistory
                 .Select(history => new ServiceOrderJobStatusHistoryDocument
                 {
@@ -43,6 +44,7 @@ internal static class ServiceOrderJobMapper
             document.StartedAtUtc,
             document.CompletedAtUtc,
             document.FailureReason,
+            document.Version,
             document.StatusHistory
                 .Select(history => new ServiceOrderJobStatusHistory(
                     (ServiceOrderJobStatus)history.Status,

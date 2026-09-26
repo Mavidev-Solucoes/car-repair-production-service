@@ -1,3 +1,4 @@
+using Application.Common.Exceptions;
 using Application.Common.Interfaces;
 using Domain.Entities;
 using Infrastructure.Persistence.Documents;
@@ -9,8 +10,7 @@ namespace Infrastructure.Persistence.Repositories;
 
 internal sealed class ServiceOrderJobRepository(
     IMongoClient mongoClient,
-    IOptions<MongoDbSettings> mongoDbSettings,
-    IDomainEventDispatcher domainEventDispatcher) : IServiceOrderJobRepository
+    IOptions<MongoDbSettings> mongoDbSettings) : IServiceOrderJobRepository
 {
     private readonly IMongoCollection<ServiceOrderJobDocument> _collection = mongoClient
         .GetDatabase(mongoDbSettings.Value.DatabaseName)
@@ -21,7 +21,7 @@ internal sealed class ServiceOrderJobRepository(
         var document = ServiceOrderJobMapper.ToDocument(serviceOrderJob);
 
         await _collection.InsertOneAsync(document, cancellationToken: cancellationToken);
-        await DispatchDomainEventsAsync(serviceOrderJob, cancellationToken);
+        serviceOrderJob.ClearDomainEvents();
     }
 
     public async Task<ServiceOrderJob?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
@@ -36,19 +36,27 @@ internal sealed class ServiceOrderJobRepository(
     public async Task UpdateAsync(ServiceOrderJob serviceOrderJob, CancellationToken cancellationToken)
     {
         var document = ServiceOrderJobMapper.ToDocument(serviceOrderJob);
+        var expectedVersion = serviceOrderJob.Version - 1;
 
-        await _collection.ReplaceOneAsync(item => item.Id == serviceOrderJob.Id, document, cancellationToken: cancellationToken);
-        await DispatchDomainEventsAsync(serviceOrderJob, cancellationToken);
-    }
+        var result = await _collection.ReplaceOneAsync(
+            item => item.Id == serviceOrderJob.Id && item.Version == expectedVersion,
+            document,
+            cancellationToken: cancellationToken);
 
-    private async Task DispatchDomainEventsAsync(ServiceOrderJob serviceOrderJob, CancellationToken cancellationToken)
-    {
-        if (serviceOrderJob.DomainEvents.Count == 0)
+        if (result.MatchedCount == 0)
         {
-            return;
+            var exists = await _collection
+                .Find(item => item.Id == serviceOrderJob.Id)
+                .AnyAsync(cancellationToken);
+
+            if (!exists)
+            {
+                throw new NotFoundException($"Work order '{serviceOrderJob.Id}' was not found.");
+            }
+
+            throw new BusinessRuleException("Work order state changed by another request. Reload and retry.");
         }
 
-        await domainEventDispatcher.DispatchAsync(serviceOrderJob.DomainEvents, cancellationToken);
         serviceOrderJob.ClearDomainEvents();
     }
 }
