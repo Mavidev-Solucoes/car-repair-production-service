@@ -14,6 +14,13 @@ public sealed class ServiceOrderJob : AggregateRoot
 
     private ServiceOrderJob(Guid id, ServiceJob serviceJob)
     {
+        if (id == Guid.Empty)
+        {
+            throw new ArgumentException("Work order identifier is required.", nameof(id));
+        }
+
+        ArgumentNullException.ThrowIfNull(serviceJob);
+
         Id = id;
         ServiceJob = serviceJob;
         Status = ServiceOrderJobStatus.Pending;
@@ -59,6 +66,19 @@ public sealed class ServiceOrderJob : AggregateRoot
         long version,
         IReadOnlyCollection<ServiceOrderJobStatusHistory> statusHistory)
     {
+        if (id == Guid.Empty)
+        {
+            throw new ArgumentException("Work order identifier is required.", nameof(id));
+        }
+
+        ArgumentNullException.ThrowIfNull(serviceJob);
+        ArgumentNullException.ThrowIfNull(statusHistory);
+
+        if (version < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(version), "Version cannot be negative.");
+        }
+
         var workOrder = new ServiceOrderJob
         {
             Id = id,
@@ -117,17 +137,35 @@ public sealed class ServiceOrderJob : AggregateRoot
             throw new InvalidOperationException("Only in-progress work orders can be failed.");
         }
 
-        FailureReason = reason;
+        FailureReason = NormalizeFailureReason(reason);
         Status = ServiceOrderJobStatus.Failed;
         CompletedAtUtc = null;
         FailedAtUtc = DateTime.UtcNow;
         Version++;
-        AddStatusHistory(Status, reason);
-        AddDomainEvent(new WorkFailedDomainEvent(Id, reason));
+        AddStatusHistory(Status, FailureReason);
+        AddDomainEvent(new WorkFailedDomainEvent(Id, FailureReason));
     }
 
     private void AddStatusHistory(ServiceOrderJobStatus status, string? reason = null)
     {
         _statusHistory.Add(new ServiceOrderJobStatusHistory(status, DateTime.UtcNow, reason));
+    }
+
+    private static string NormalizeFailureReason(string reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new ArgumentException("Failure reason is required.", nameof(reason));
+        }
+
+        var normalizedReason = reason.Trim();
+        if (normalizedReason.Length > ServiceOrderJobStatusHistory.ReasonMaxLength)
+        {
+            throw new ArgumentException(
+                $"Failure reason cannot exceed {ServiceOrderJobStatusHistory.ReasonMaxLength} characters.",
+                nameof(reason));
+        }
+
+        return normalizedReason;
     }
 }
