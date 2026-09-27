@@ -86,7 +86,7 @@ public sealed class WorkOrdersEndpointsSkeletonTests
 
         var response = await client.PostAsJsonAsync(
             $"/api/work-orders/{workOrderId}/fail",
-            new FailWorkRequest(new string('a', 501)));
+            new FailWorkRequest(new string('a', ServiceOrderJobStatusHistory.ReasonMaxLength + 1)));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

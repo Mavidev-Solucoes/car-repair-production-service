@@ -59,7 +59,7 @@ internal sealed class MongoDbContext : IMongoDbContext
         foreach (var collectionMapping in collectionMappings)
         {
             var indexTargetKey =
-                $"{database.DatabaseNamespace.DatabaseName}:{settings.ServiceOrderJobsCollectionName}:{collectionMapping.GetType().FullName}";
+                $"{database.DatabaseNamespace.DatabaseName}:{collectionMapping.GetIndexTargetKey(settings)}:{collectionMapping.GetType().FullName}";
             if (!EnsuredIndexTargets.TryAdd(indexTargetKey, 0))
             {
                 continue;

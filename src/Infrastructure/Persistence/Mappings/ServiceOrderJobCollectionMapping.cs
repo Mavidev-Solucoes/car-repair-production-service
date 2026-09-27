@@ -43,4 +43,6 @@ internal sealed class ServiceOrderJobCollectionMapping : IMongoCollectionMapping
 
         collection.Indexes.CreateOne(createdAtIndex);
     }
+
+    public string GetIndexTargetKey(MongoDbSettings settings) => settings.ServiceOrderJobsCollectionName;
 }
