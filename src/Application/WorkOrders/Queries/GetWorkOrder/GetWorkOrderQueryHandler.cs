@@ -29,6 +29,7 @@ public sealed class GetWorkOrderQueryHandler(IServiceOrderJobRepository reposito
             workOrder.FailureReason,
             workOrder.Version,
             workOrder.StatusHistory
+                .OrderBy(history => history.ChangedAtUtc)
                 .Select(history => new WorkOrderStatusHistoryResponse(
                     history.Status.ToString(),
                     history.ChangedAtUtc,

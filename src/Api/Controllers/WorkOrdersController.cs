@@ -10,10 +10,11 @@ using Microsoft.AspNetCore.Mvc;
 namespace Api.Controllers;
 
 [ApiController]
-[Route("work-orders")]
+[Route("api/work-orders")]
 public sealed class WorkOrdersController(ISender sender) : ControllerBase
 {
     [HttpPost]
+    [HttpPost("/work-orders")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateWorkOrder([FromBody] CreateWorkOrderRequest request, CancellationToken cancellationToken)
     {
@@ -25,6 +26,7 @@ public sealed class WorkOrdersController(ISender sender) : ControllerBase
     }
 
     [HttpGet]
+    [HttpGet("/work-orders")]
     [ProducesResponseType(typeof(IReadOnlyCollection<WorkOrderSummaryResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListWorkOrders(CancellationToken cancellationToken)
     {
@@ -33,6 +35,7 @@ public sealed class WorkOrdersController(ISender sender) : ControllerBase
     }
 
     [HttpGet("{workOrderId:guid}")]
+    [HttpGet("/work-orders/{workOrderId:guid}")]
     [ProducesResponseType(typeof(WorkOrderDetailsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetWorkOrderById(Guid workOrderId, CancellationToken cancellationToken)
@@ -42,6 +45,7 @@ public sealed class WorkOrdersController(ISender sender) : ControllerBase
     }
 
     [HttpPost("{workOrderId:guid}/start")]
+    [HttpPost("/work-orders/{workOrderId:guid}/start")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -52,6 +56,7 @@ public sealed class WorkOrdersController(ISender sender) : ControllerBase
     }
 
     [HttpPost("{workOrderId:guid}/complete")]
+    [HttpPost("/work-orders/{workOrderId:guid}/complete")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
@@ -62,6 +67,7 @@ public sealed class WorkOrdersController(ISender sender) : ControllerBase
     }
 
     [HttpPost("{workOrderId:guid}/fail")]
+    [HttpPost("/work-orders/{workOrderId:guid}/fail")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
