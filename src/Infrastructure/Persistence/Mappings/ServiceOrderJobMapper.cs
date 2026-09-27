@@ -37,6 +37,13 @@ internal static class ServiceOrderJobMapper
 
     public static ServiceOrderJob ToEntity(ServiceOrderJobDocument document)
     {
+        ArgumentNullException.ThrowIfNull(document);
+
+        if (document.ServiceJob is null)
+        {
+            throw new InvalidOperationException("Persisted work order is missing its service job payload.");
+        }
+
         return ServiceOrderJob.Rehydrate(
             document.Id,
             new ServiceJob(document.ServiceJob.Id, document.ServiceJob.Name, document.ServiceJob.Description),
@@ -47,7 +54,7 @@ internal static class ServiceOrderJobMapper
             document.FailedAtUtc,
             document.FailureReason,
             document.Version,
-            document.StatusHistory
+            (document.StatusHistory ?? [])
                 .Select(history => new ServiceOrderJobStatusHistory(
                     (ServiceOrderJobStatus)history.Status,
                     history.ChangedAtUtc,
