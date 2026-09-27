@@ -2,12 +2,12 @@ using Application.Common.Exceptions;
 using Application.Common.Interfaces;
 using MediatR;
 
-namespace Application.WorkOrders.Queries.GetWorkOrderById;
+namespace Application.WorkOrders.Queries.GetWorkOrder;
 
-public sealed class GetWorkOrderByIdQueryHandler(IServiceOrderJobRepository repository)
-    : IRequestHandler<GetWorkOrderByIdQuery, WorkOrderDetailsResponse>
+public sealed class GetWorkOrderQueryHandler(IServiceOrderJobRepository repository)
+    : IRequestHandler<GetWorkOrderQuery, WorkOrderDetailsResponse>
 {
-    public async Task<WorkOrderDetailsResponse> Handle(GetWorkOrderByIdQuery request, CancellationToken cancellationToken)
+    public async Task<WorkOrderDetailsResponse> Handle(GetWorkOrderQuery request, CancellationToken cancellationToken)
     {
         var workOrder = await repository.GetByIdAsync(request.WorkOrderId, cancellationToken);
 
@@ -29,6 +29,7 @@ public sealed class GetWorkOrderByIdQueryHandler(IServiceOrderJobRepository repo
             workOrder.FailureReason,
             workOrder.Version,
             workOrder.StatusHistory
+                .OrderBy(history => history.ChangedAtUtc)
                 .Select(history => new WorkOrderStatusHistoryResponse(
                     history.Status.ToString(),
                     history.ChangedAtUtc,

@@ -1,8 +1,8 @@
 using MediatR;
 
-namespace Application.WorkOrders.Queries.GetWorkOrderById;
+namespace Application.WorkOrders.Queries.GetWorkOrder;
 
-public sealed record GetWorkOrderByIdQuery(Guid WorkOrderId) : IRequest<WorkOrderDetailsResponse>;
+public sealed record GetWorkOrderQuery(Guid WorkOrderId) : IRequest<WorkOrderDetailsResponse>;
 
 public sealed record WorkOrderDetailsResponse(
     Guid Id,
