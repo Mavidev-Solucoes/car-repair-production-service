@@ -8,8 +8,8 @@ namespace Infrastructure.Persistence;
 internal sealed class MongoDbContext : IMongoDbContext
 {
     private static readonly object ConfigurationLock = new();
+    private static readonly HashSet<string> EnsuredIndexTargets = [];
     private static bool _isConfigured;
-    private static bool _areIndexesEnsured;
 
     public MongoDbContext(
         IMongoClient mongoClient,
@@ -55,14 +55,15 @@ internal sealed class MongoDbContext : IMongoDbContext
         MongoDbSettings settings,
         IEnumerable<IMongoCollectionMapping> collectionMappings)
     {
-        if (_areIndexesEnsured)
+        var indexTargetKey = $"{database.DatabaseNamespace.DatabaseName}:{settings.ServiceOrderJobsCollectionName}";
+        if (EnsuredIndexTargets.Contains(indexTargetKey))
         {
             return;
         }
 
         lock (ConfigurationLock)
         {
-            if (_areIndexesEnsured)
+            if (EnsuredIndexTargets.Contains(indexTargetKey))
             {
                 return;
             }
@@ -72,7 +73,7 @@ internal sealed class MongoDbContext : IMongoDbContext
                 collectionMapping.EnsureIndexes(database, settings);
             }
 
-            _areIndexesEnsured = true;
+            EnsuredIndexTargets.Add(indexTargetKey);
         }
     }
 }
