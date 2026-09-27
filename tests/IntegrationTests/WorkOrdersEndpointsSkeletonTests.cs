@@ -66,13 +66,29 @@ public sealed class WorkOrdersEndpointsSkeletonTests
 
         var failResponse = await client.PostAsJsonAsync(
             $"/api/work-orders/{workOrderId}/fail",
-            new FailWorkRequest("Missing spare part"));
+            new FailWorkRequest("  Missing spare part  "));
         var getResponse = await client.GetFromJsonAsync<WorkOrderDetailsResponse>($"/api/work-orders/{workOrderId}");
 
         Assert.Equal(HttpStatusCode.NoContent, failResponse.StatusCode);
         Assert.NotNull(getResponse);
         Assert.Equal("Failed", getResponse.Status);
         Assert.Equal("Missing spare part", getResponse.FailureReason);
+    }
+
+    [Fact]
+    public async Task FailWork_WithTooLongReason_ShouldReturnBadRequest()
+    {
+        await using var factory = new WorkOrdersApiFactory();
+        using var client = factory.CreateClient();
+
+        var workOrderId = await CreateWorkOrderAsync(client);
+        await client.PostAsync($"/api/work-orders/{workOrderId}/start", content: null);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/work-orders/{workOrderId}/fail",
+            new FailWorkRequest(new string('a', 501)));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]

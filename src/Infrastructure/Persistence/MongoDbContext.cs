@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Infrastructure.Persistence.Documents;
 using Infrastructure.Persistence.Mappings;
 using Microsoft.Extensions.Options;
@@ -8,7 +9,7 @@ namespace Infrastructure.Persistence;
 internal sealed class MongoDbContext : IMongoDbContext
 {
     private static readonly object ConfigurationLock = new();
-    private static readonly HashSet<string> EnsuredIndexTargets = [];
+    private static readonly ConcurrentDictionary<string, byte> EnsuredIndexTargets = new();
     private static bool _isConfigured;
 
     public MongoDbContext(
@@ -55,25 +56,23 @@ internal sealed class MongoDbContext : IMongoDbContext
         MongoDbSettings settings,
         IEnumerable<IMongoCollectionMapping> collectionMappings)
     {
-        var indexTargetKey = $"{database.DatabaseNamespace.DatabaseName}:{settings.ServiceOrderJobsCollectionName}";
-        if (EnsuredIndexTargets.Contains(indexTargetKey))
+        foreach (var collectionMapping in collectionMappings)
         {
-            return;
-        }
-
-        lock (ConfigurationLock)
-        {
-            if (EnsuredIndexTargets.Contains(indexTargetKey))
+            var indexTargetKey = $"{database.DatabaseNamespace.DatabaseName}:{collectionMapping.GetType().FullName}";
+            if (!EnsuredIndexTargets.TryAdd(indexTargetKey, 0))
             {
-                return;
+                continue;
             }
 
-            foreach (var collectionMapping in collectionMappings)
+            try
             {
                 collectionMapping.EnsureIndexes(database, settings);
             }
-
-            EnsuredIndexTargets.Add(indexTargetKey);
+            catch
+            {
+                EnsuredIndexTargets.TryRemove(indexTargetKey, out _);
+                throw;
+            }
         }
     }
 }
