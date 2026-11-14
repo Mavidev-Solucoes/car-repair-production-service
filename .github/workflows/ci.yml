@@ -153,14 +153,7 @@ jobs:
             exit 1
           fi
 
-          line_coverage=$(python3 - <<'PY'
-import xml.etree.ElementTree as ET
-
-root = ET.parse("CoverageReport/Cobertura.xml").getroot()
-line_rate = float(root.attrib.get("line-rate", "0"))
-print(f"{line_rate * 100:.2f}")
-PY
-)
+          line_coverage=$(python3 -c 'import xml.etree.ElementTree as ET; r = ET.parse("CoverageReport/Cobertura.xml").getroot(); print("%.2f" % (float(r.attrib.get("line-rate", "0")) * 100))')
 
           echo "Line coverage (production assemblies): ${line_coverage}%"
           if ! awk "BEGIN {exit !($line_coverage >= $COVERAGE_THRESHOLD)}"; then
