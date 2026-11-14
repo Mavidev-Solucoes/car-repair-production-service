@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: car-repair-production-service
+  labels:
+    app.kubernetes.io/name: car-repair-production-service
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: car-repair
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: car-repair-production-service
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

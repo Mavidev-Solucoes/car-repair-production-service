@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: car-repair-production-service-config
+  labels:
+    app.kubernetes.io/name: car-repair-production-service
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: car-repair
+# Só configuração não sigilosa. Senhas vêm dos Secrets criados por
+# car-repair-k8s-infra/scripts/academy-bootstrap-platform.sh.
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  RabbitMq__Enabled: "true"
+  RabbitMq__HostName: "rabbitmq"
+  MongoDb__DatabaseName: "carRepairProductionDb"

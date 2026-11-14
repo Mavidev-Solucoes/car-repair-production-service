@@ -8,10 +8,10 @@ on:
       - completed
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: cd-${{ github.event.workflow_run.head_branch }}
@@ -20,6 +20,9 @@ concurrency:
 jobs:
   build-and-push:
     name: Build and Push Docker Image to GHCR
+    permissions:
+      contents: read
+      packages: write
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
     runs-on: ubuntu-latest
 
@@ -50,3 +53,106 @@ jobs:
           tags: |
             ${{ steps.image.outputs.name }}:latest
             ${{ steps.image.outputs.name }}:${{ github.event.workflow_run.head_sha }}
+
+  deploy-academy:
+    name: Deploy no EKS (AWS Academy)
+    runs-on: ubuntu-latest
+    # Roda depois de um CI verde na main ou manualmente (Run workflow). Se a sessão do lab estiver
+    # desligada ou as credenciais tiverem expirado, o job só avisa e termina sem falhar.
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.event == 'push' &&
+           github.event.workflow_run.head_branch == 'main') }}
+    concurrency:
+      group: deploy-academy-car-repair-production-service
+      cancel-in-progress: false
+    env:
+      SERVICE: car-repair-production-service
+      NAMESPACE: car-repair
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'car-repair-dev' }}
+      IMAGE_TAG: ${{ github.sha }}
+      # Credenciais temporárias do AWS Academy (AWS Details > AWS CLI), atualizadas a cada sessão
+      # por car-repair-k8s-infra/scripts/academy-github-credentials.sh.
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+
+    steps:
+      # Sem ref vinda do evento: o deploy usa o commit atual da main (github.sha), nunca código de um fork.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verificar sessão do AWS Academy
+        id: session
+        shell: bash
+        run: |
+          skip() {
+            echo "::notice title=Deploy pulado::$1"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          [ -n "${AWS_ACCESS_KEY_ID}" ] || skip "Secrets AWS_* não configurados neste repositório."
+          aws sts get-caller-identity >/dev/null 2>&1 || skip "Credenciais do AWS Academy expiradas. Suba o lab e rode academy-github-credentials.sh."
+          aws eks describe-cluster --name "${EKS_CLUSTER_NAME}" --region "${AWS_REGION}" >/dev/null 2>&1 \
+            || skip "Cluster ${EKS_CLUSTER_NAME} não existe nesta sessão do lab."
+
+          account_id="$(aws sts get-caller-identity --query Account --output text)"
+          echo "registry=${account_id}.dkr.ecr.${AWS_REGION}.amazonaws.com" >> "$GITHUB_OUTPUT"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar imagem no ECR
+        if: steps.session.outputs.available == 'true'
+        shell: bash
+        env:
+          REGISTRY: ${{ steps.session.outputs.registry }}
+        run: |
+          aws ecr get-login-password --region "${AWS_REGION}" \
+            | docker login --username AWS --password-stdin "${REGISTRY}"
+
+          # As tags do ECR são imutáveis: um redeploy do mesmo commit reaproveita a imagem.
+          if aws ecr describe-images --repository-name "${SERVICE}" --image-ids "imageTag=${IMAGE_TAG}" \
+            --region "${AWS_REGION}" >/dev/null 2>&1; then
+            echo "Imagem ${SERVICE}:${IMAGE_TAG} já está no ECR."
+            exit 0
+          fi
+
+          docker build --file src/Api/Dockerfile --tag "${REGISTRY}/${SERVICE}:${IMAGE_TAG}" .
+          docker push "${REGISTRY}/${SERVICE}:${IMAGE_TAG}"
+
+      - name: Configurar kubectl
+        if: steps.session.outputs.available == 'true'
+        run: aws eks update-kubeconfig --name "${EKS_CLUSTER_NAME}" --region "${AWS_REGION}"
+
+      - name: Conferir plataforma
+        if: steps.session.outputs.available == 'true'
+        shell: bash
+        run: |
+          if ! kubectl -n "${NAMESPACE}" get secret rabbitmq >/dev/null 2>&1; then
+            echo "::error::A plataforma (bancos e RabbitMQ) não está no cluster. Rode o workflow Platform do car-repair-k8s-infra antes."
+            exit 1
+          fi
+
+      - name: Aplicar manifests
+        if: steps.session.outputs.available == 'true'
+        shell: bash
+        env:
+          REGISTRY: ${{ steps.session.outputs.registry }}
+        run: |
+          kubectl kustomize k8s/overlays/academy-dev \
+            | sed "s|image: ${SERVICE}:latest|image: ${REGISTRY}/${SERVICE}:${IMAGE_TAG}|" \
+            > /tmp/manifests.yaml
+          grep -q "image: ${REGISTRY}/${SERVICE}:${IMAGE_TAG}" /tmp/manifests.yaml
+          kubectl apply -f /tmp/manifests.yaml
+
+      - name: Aguardar rollout
+        if: steps.session.outputs.available == 'true'
+        shell: bash
+        run: |
+          if ! kubectl -n "${NAMESPACE}" rollout status "deployment/${SERVICE}" --timeout=300s; then
+            kubectl -n "${NAMESPACE}" get pods -l "app.kubernetes.io/name=${SERVICE}"
+            kubectl -n "${NAMESPACE}" logs "deployment/${SERVICE}" --tail=100 || true
+            exit 1
+          fi
