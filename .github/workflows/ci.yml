@@ -94,7 +94,8 @@ jobs:
             /d:sonar.qualitygate.wait=true \
             /d:sonar.qualitygate.timeout=300 \
             /d:sonar.cs.opencover.reportsPaths="${GITHUB_WORKSPACE}/TestResults/**/coverage.opencover.xml" \
-            /d:sonar.coverage.exclusions="**/Program.cs"
+            /d:sonar.coverage.exclusions="**/Program.cs" \
+            /d:sonar.exclusions="**/TestResults/**,**/CoverageReport/**,**/bin/**,**/obj/**"
 
       - name: Build
         run: dotnet build CarRepairProductionService.sln --configuration Release --no-restore
