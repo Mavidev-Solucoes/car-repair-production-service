@@ -36,11 +36,11 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Setup Java (required by SonarScanner)
+      - name: Setup Java 21 (required by SonarScanner)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
