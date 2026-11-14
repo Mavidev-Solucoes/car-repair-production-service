@@ -26,7 +26,7 @@ public sealed class WorkOrdersEndpointsSkeletonTests
 
         var response = await client.PostAsJsonAsync(
             "/api/work-orders",
-            new CreateWorkOrderRequest(Guid.NewGuid(), "Oil Change", "Replace engine oil"));
+            new CreateWorkOrderRequest(Guid.NewGuid(), Guid.NewGuid(), "Oil Change", "Replace engine oil"));
 
         var payload = await response.Content.ReadFromJsonAsync<CreatedWorkOrderResponse>();
 
@@ -112,7 +112,7 @@ public sealed class WorkOrdersEndpointsSkeletonTests
     {
         var response = await client.PostAsJsonAsync(
             "/api/work-orders",
-            new CreateWorkOrderRequest(Guid.NewGuid(), serviceJobName, $"{serviceJobName} description"));
+            new CreateWorkOrderRequest(Guid.NewGuid(), Guid.NewGuid(), serviceJobName, $"{serviceJobName} description"));
         var payload = await response.Content.ReadFromJsonAsync<CreatedWorkOrderResponse>();
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -159,6 +159,11 @@ public sealed class WorkOrdersEndpointsSkeletonTests
             return Task.FromResult(item);
         }
 
+        public Task<ServiceOrderJob?> GetByServiceOrderIdAsync(Guid serviceOrderId, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(_items.Values.FirstOrDefault(item => item.ServiceOrderId == serviceOrderId));
+        }
+
         public Task<IReadOnlyCollection<ServiceOrderJob>> ListAsync(CancellationToken cancellationToken)
         {
             var items = _items.Values
@@ -177,8 +182,7 @@ public sealed class WorkOrdersEndpointsSkeletonTests
 
     private sealed class NoOpEventPublisher : IEventPublisher
     {
-        public Task PublishAsync<TEvent>(MessageEnvelope<TEvent> envelope, string routingKey, CancellationToken cancellationToken = default)
-            where TEvent : class
+        public Task PublishAsync(IntegrationMessage message, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
     }
 }

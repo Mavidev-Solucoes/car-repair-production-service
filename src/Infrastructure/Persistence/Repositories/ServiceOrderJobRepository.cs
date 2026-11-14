@@ -28,6 +28,15 @@ internal sealed class ServiceOrderJobRepository(
         return document is null ? null : ServiceOrderJobMapper.ToEntity(document);
     }
 
+    public async Task<ServiceOrderJob?> GetByServiceOrderIdAsync(Guid serviceOrderId, CancellationToken cancellationToken)
+    {
+        var document = await _collection
+            .Find(item => item.ServiceOrderId == serviceOrderId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return document is null ? null : ServiceOrderJobMapper.ToEntity(document);
+    }
+
     public async Task<IReadOnlyCollection<ServiceOrderJob>> ListAsync(CancellationToken cancellationToken)
     {
         var documents = await _collection

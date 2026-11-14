@@ -6,6 +6,7 @@ public sealed class CreateWorkOrderCommandValidator : AbstractValidator<CreateWo
 {
     public CreateWorkOrderCommandValidator()
     {
+        RuleFor(x => x.ServiceOrderId).NotEmpty();
         RuleFor(x => x.ServiceJobId).NotEmpty();
         RuleFor(x => x.ServiceJobName).NotEmpty().MaximumLength(120);
         RuleFor(x => x.ServiceJobDescription).MaximumLength(500);

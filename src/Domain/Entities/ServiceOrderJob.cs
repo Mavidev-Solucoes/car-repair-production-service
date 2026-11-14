@@ -12,16 +12,22 @@ public sealed class ServiceOrderJob : AggregateRoot
     {
     }
 
-    private ServiceOrderJob(Guid id, ServiceJob serviceJob)
+    private ServiceOrderJob(Guid id, Guid serviceOrderId, ServiceJob serviceJob)
     {
         if (id == Guid.Empty)
         {
             throw new ArgumentException("Work order identifier is required.", nameof(id));
         }
 
+        if (serviceOrderId == Guid.Empty)
+        {
+            throw new ArgumentException("Service order identifier is required.", nameof(serviceOrderId));
+        }
+
         ArgumentNullException.ThrowIfNull(serviceJob);
 
         Id = id;
+        ServiceOrderId = serviceOrderId;
         ServiceJob = serviceJob;
         Status = ServiceOrderJobStatus.Pending;
         CreatedAtUtc = DateTime.UtcNow;
@@ -30,6 +36,11 @@ public sealed class ServiceOrderJob : AggregateRoot
     }
 
     public Guid Id { get; private set; }
+
+    /// <summary>
+    /// Id da ordem de serviço no os-service. É o correlationId das mensagens da saga.
+    /// </summary>
+    public Guid ServiceOrderId { get; private set; }
 
     public ServiceJob ServiceJob { get; private set; } = null!;
 
@@ -49,13 +60,14 @@ public sealed class ServiceOrderJob : AggregateRoot
 
     public IReadOnlyCollection<ServiceOrderJobStatusHistory> StatusHistory => _statusHistory.AsReadOnly();
 
-    public static ServiceOrderJob Create(Guid id, ServiceJob serviceJob)
+    public static ServiceOrderJob Create(Guid id, Guid serviceOrderId, ServiceJob serviceJob)
     {
-        return new ServiceOrderJob(id, serviceJob);
+        return new ServiceOrderJob(id, serviceOrderId, serviceJob);
     }
 
     public static ServiceOrderJob Rehydrate(
         Guid id,
+        Guid serviceOrderId,
         ServiceJob serviceJob,
         ServiceOrderJobStatus status,
         DateTime createdAtUtc,
@@ -82,6 +94,7 @@ public sealed class ServiceOrderJob : AggregateRoot
         var workOrder = new ServiceOrderJob
         {
             Id = id,
+            ServiceOrderId = serviceOrderId,
             ServiceJob = serviceJob,
             Status = status,
             CreatedAtUtc = createdAtUtc,

@@ -11,6 +11,7 @@ internal static class ServiceOrderJobMapper
         return new ServiceOrderJobDocument
         {
             Id = entity.Id,
+            ServiceOrderId = entity.ServiceOrderId,
             ServiceJob = new ServiceJobDocument
             {
                 Id = entity.ServiceJob.Id,
@@ -46,6 +47,7 @@ internal static class ServiceOrderJobMapper
 
         return ServiceOrderJob.Rehydrate(
             document.Id,
+            document.ServiceOrderId,
             new ServiceJob(document.ServiceJob.Id, document.ServiceJob.Name, document.ServiceJob.Description),
             (ServiceOrderJobStatus)document.Status,
             document.CreatedAtUtc,

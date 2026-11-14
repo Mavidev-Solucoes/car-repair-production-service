@@ -2,10 +2,9 @@ namespace Application.Common.Messaging;
 
 public interface ICommandConsumer
 {
-    Task SubscribeAsync<TCommand>(
+    Task SubscribeAsync(
         string queueName,
-        string routingKey,
-        Func<MessageEnvelope<TCommand>, CancellationToken, Task> onMessage,
-        CancellationToken cancellationToken = default)
-        where TCommand : class;
+        string commandType,
+        Func<IntegrationMessage, CancellationToken, Task> onMessage,
+        CancellationToken cancellationToken = default);
 }

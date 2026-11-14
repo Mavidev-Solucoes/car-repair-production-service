@@ -16,9 +16,17 @@ public sealed class RabbitMqSettings
 
     public string VirtualHost { get; init; } = "/";
 
+    /// <summary>
+    /// Exchange onde o serviço publica seus eventos.
+    /// </summary>
     public string ExchangeName { get; init; } = "car-repair.events";
 
-    public string DeadLetterExchangeName { get; init; } = "car-repair.events.dlx";
+    /// <summary>
+    /// Exchange de onde o serviço consome os comandos da saga.
+    /// </summary>
+    public string CommandsExchangeName { get; init; } = "car-repair.commands";
+
+    public string DeadLetterExchangeName { get; init; } = "car-repair.commands.dlx";
 
     public int RetryCount { get; init; } = 3;
 

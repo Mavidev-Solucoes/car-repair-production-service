@@ -18,6 +18,7 @@ public sealed class GetWorkOrderQueryHandler(IServiceOrderJobRepository reposito
 
         return new WorkOrderDetailsResponse(
             workOrder.Id,
+            workOrder.ServiceOrderId,
             workOrder.ServiceJob.Id,
             workOrder.ServiceJob.Name,
             workOrder.ServiceJob.Description,

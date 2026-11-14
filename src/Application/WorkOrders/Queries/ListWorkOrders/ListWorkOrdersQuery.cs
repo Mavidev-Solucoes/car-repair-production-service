@@ -6,6 +6,7 @@ public sealed record ListWorkOrdersQuery : IRequest<IReadOnlyCollection<WorkOrde
 
 public sealed record WorkOrderSummaryResponse(
     Guid Id,
+    Guid ServiceOrderId,
     Guid ServiceJobId,
     string ServiceJobName,
     string Status,

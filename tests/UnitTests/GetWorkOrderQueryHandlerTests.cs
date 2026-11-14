@@ -11,7 +11,7 @@ public sealed class GetWorkOrderQueryHandlerTests
     [Fact]
     public async Task Handle_ShouldReturnOrderedStatusHistory()
     {
-        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), new ServiceJob(Guid.NewGuid(), "Alignment", "Wheel alignment"));
+        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), Guid.NewGuid(), new ServiceJob(Guid.NewGuid(), "Alignment", "Wheel alignment"));
         workOrder.StartWork();
         workOrder.FailWork("Part unavailable");
 
@@ -36,6 +36,9 @@ public sealed class GetWorkOrderQueryHandlerTests
     private sealed class InMemoryServiceOrderJobRepository(ServiceOrderJob? item) : IServiceOrderJobRepository
     {
         public Task AddAsync(ServiceOrderJob serviceOrderJob, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<ServiceOrderJob?> GetByServiceOrderIdAsync(Guid serviceOrderId, CancellationToken cancellationToken)
+            => Task.FromResult(item?.ServiceOrderId == serviceOrderId ? item : null);
 
         public Task<ServiceOrderJob?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
             => Task.FromResult(item?.Id == id ? item : null);

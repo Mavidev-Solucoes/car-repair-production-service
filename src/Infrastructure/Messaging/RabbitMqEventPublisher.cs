@@ -17,14 +17,13 @@ public sealed class RabbitMqEventPublisher(
     private IConnection? _connection;
     private IModel? _channel;
 
-    public async Task PublishAsync<TEvent>(MessageEnvelope<TEvent> envelope, string routingKey, CancellationToken cancellationToken = default)
-        where TEvent : class
+    public async Task PublishAsync(IntegrationMessage message, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         if (!_settings.Enabled)
         {
-            logger.LogDebug("RabbitMq publishing is disabled. Event {EventType} was not published.", envelope.EventType);
+            logger.LogDebug("RabbitMq publishing is disabled. Event {EventType} was not published.", message.Type);
             return;
         }
 
@@ -36,35 +35,29 @@ public sealed class RabbitMqEventPublisher(
             var channel = _channel ?? throw new InvalidOperationException("RabbitMQ channel is not initialized.");
 
             channel.ExchangeDeclare(_settings.ExchangeName, ExchangeType.Topic, _settings.Durable, false);
-            channel.ExchangeDeclare(_settings.DeadLetterExchangeName, ExchangeType.Topic, _settings.Durable, false);
 
             var properties = channel.CreateBasicProperties();
             properties.Persistent = true;
             properties.ContentType = "application/json";
-            properties.MessageId = envelope.MessageId.ToString();
-            properties.CorrelationId = envelope.CorrelationId;
-            properties.Type = envelope.EventType;
-            properties.Timestamp = new AmqpTimestamp(new DateTimeOffset(envelope.OccurredAt).ToUnixTimeSeconds());
-            properties.Headers = new Dictionary<string, object?>
-            {
-                ["event-version"] = envelope.EventVersion,
-                ["saga-id"] = envelope.SagaId ?? string.Empty
-            };
+            properties.MessageId = message.MessageId.ToString();
+            properties.CorrelationId = message.CorrelationId;
+            properties.Type = message.Type;
+            properties.Timestamp = new AmqpTimestamp(new DateTimeOffset(DateTime.SpecifyKind(message.OccurredAtUtc, DateTimeKind.Utc)).ToUnixTimeSeconds());
 
-            var body = JsonSerializer.SerializeToUtf8Bytes(envelope);
+            var body = JsonSerializer.SerializeToUtf8Bytes(message, IntegrationMessage.SerializerOptions);
 
             channel.BasicPublish(
                 exchange: _settings.ExchangeName,
-                routingKey: routingKey,
+                routingKey: message.Type,
                 mandatory: false,
                 basicProperties: properties,
                 body: body);
 
             logger.LogInformation(
                 "Published event {EventType} to exchange {Exchange} with routing key {RoutingKey}",
-                envelope.EventType,
+                message.Type,
                 _settings.ExchangeName,
-                routingKey);
+                message.Type);
         }
         finally
         {

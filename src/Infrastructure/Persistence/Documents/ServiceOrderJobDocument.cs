@@ -4,6 +4,8 @@ internal sealed class ServiceOrderJobDocument
 {
     public Guid Id { get; set; }
 
+    public Guid ServiceOrderId { get; set; }
+
     public ServiceJobDocument ServiceJob { get; set; } = null!;
 
     public int Status { get; set; }

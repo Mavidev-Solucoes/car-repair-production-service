@@ -18,13 +18,14 @@ public sealed class RabbitMqCommandConsumer(
     private readonly List<SemaphoreSlim> _channelLocks = [];
     private readonly object _sync = new();
 
-    public Task SubscribeAsync<TCommand>(
+    public Task SubscribeAsync(
         string queueName,
-        string routingKey,
-        Func<MessageEnvelope<TCommand>, CancellationToken, Task> onMessage,
+        string commandType,
+        Func<IntegrationMessage, CancellationToken, Task> onMessage,
         CancellationToken cancellationToken = default)
-        where TCommand : class
     {
+        var routingKey = commandType;
+
         if (!_settings.Enabled)
         {
             logger.LogDebug("RabbitMq consumption is disabled. Queue {QueueName} was not subscribed.", queueName);
@@ -36,11 +37,11 @@ public sealed class RabbitMqCommandConsumer(
         var channel = connection.CreateModel();
         var channelLock = new SemaphoreSlim(1, 1);
 
-        var retryExchangeName = $"{_settings.ExchangeName}.retry";
+        var retryExchangeName = $"{_settings.CommandsExchangeName}.retry";
         var retryQueueName = $"{queueName}.retry";
         var deadLetterQueueName = $"{queueName}.dlq";
 
-        channel.ExchangeDeclare(_settings.ExchangeName, ExchangeType.Topic, _settings.Durable, false);
+        channel.ExchangeDeclare(_settings.CommandsExchangeName, ExchangeType.Topic, _settings.Durable, false);
         channel.ExchangeDeclare(_settings.DeadLetterExchangeName, ExchangeType.Topic, _settings.Durable, false);
         channel.ExchangeDeclare(retryExchangeName, ExchangeType.Topic, _settings.Durable, false);
 
@@ -55,7 +56,7 @@ public sealed class RabbitMqCommandConsumer(
                 ["x-dead-letter-routing-key"] = routingKey
             });
 
-        channel.QueueBind(queueName, _settings.ExchangeName, routingKey);
+        channel.QueueBind(queueName, _settings.CommandsExchangeName, routingKey);
 
         channel.QueueDeclare(
             queue: retryQueueName,
@@ -65,7 +66,7 @@ public sealed class RabbitMqCommandConsumer(
             arguments: new Dictionary<string, object>
             {
                 ["x-message-ttl"] = _settings.RetryDelayMilliseconds,
-                ["x-dead-letter-exchange"] = _settings.ExchangeName,
+                ["x-dead-letter-exchange"] = _settings.CommandsExchangeName,
                 ["x-dead-letter-routing-key"] = routingKey
             });
 
@@ -82,13 +83,7 @@ public sealed class RabbitMqCommandConsumer(
         {
             try
             {
-                var envelope = JsonSerializer.Deserialize<MessageEnvelope<TCommand>>(eventArgs.Body.Span);
-                if (envelope is null)
-                {
-                    throw new InvalidOperationException("Message envelope could not be deserialized.");
-                }
-
-                await onMessage(envelope, cancellationToken);
+                await onMessage(Deserialize(eventArgs.Body), cancellationToken);
 
                 await channelLock.WaitAsync(CancellationToken.None);
                 try
@@ -117,7 +112,7 @@ public sealed class RabbitMqCommandConsumer(
 
                     try
                     {
-                        if (retryCount < _settings.RetryCount)
+                        if (ex is not InvalidMessageException && retryCount < _settings.RetryCount)
                         {
                             var retryProperties = BuildProperties(channel, eventArgs.BasicProperties, retryCount + 1);
                             channel.BasicPublish(retryExchangeName, routingKey, false, retryProperties, eventArgs.Body);
@@ -190,7 +185,7 @@ public sealed class RabbitMqCommandConsumer(
         logger.LogInformation(
             "Subscribed queue {QueueName} to exchange {ExchangeName} with routing key {RoutingKey}",
             queueName,
-            _settings.ExchangeName,
+            _settings.CommandsExchangeName,
             routingKey);
 
         return Task.CompletedTask;
@@ -242,6 +237,26 @@ public sealed class RabbitMqCommandConsumer(
             VirtualHost = _settings.VirtualHost,
             DispatchConsumersAsync = true
         };
+    }
+
+    public static IntegrationMessage Deserialize(ReadOnlyMemory<byte> body)
+    {
+        IntegrationMessage? message;
+        try
+        {
+            message = JsonSerializer.Deserialize<IntegrationMessage>(body.Span, IntegrationMessage.SerializerOptions);
+        }
+        catch (JsonException exception)
+        {
+            throw new InvalidMessageException($"Message body is not a valid envelope: {exception.Message}");
+        }
+
+        if (message is null || string.IsNullOrWhiteSpace(message.Type) || string.IsNullOrWhiteSpace(message.CorrelationId))
+        {
+            throw new InvalidMessageException("Message envelope must have type and correlationId.");
+        }
+
+        return message;
     }
 
     private static int GetRetryCount(IDictionary<string, object>? headers)
