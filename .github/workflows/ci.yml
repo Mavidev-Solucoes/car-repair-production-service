@@ -36,11 +36,11 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Setup Java (required by SonarScanner)
+      - name: Setup Java 21 (required by SonarScanner)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -93,7 +93,8 @@ jobs:
             /d:sonar.host.url="${SONAR_HOST_URL}" \
             /d:sonar.qualitygate.wait=true \
             /d:sonar.qualitygate.timeout=300 \
-            /d:sonar.cs.opencover.reportsPaths="${GITHUB_WORKSPACE}/TestResults/**/coverage.opencover.xml"
+            /d:sonar.cs.opencover.reportsPaths="${GITHUB_WORKSPACE}/TestResults/**/coverage.opencover.xml" \
+            /d:sonar.coverage.exclusions="**/Program.cs"
 
       - name: Build
         run: dotnet build CarRepairProductionService.sln --configuration Release --no-restore
@@ -153,14 +154,7 @@ jobs:
             exit 1
           fi
 
-          line_coverage=$(python3 - <<'PY'
-import xml.etree.ElementTree as ET
-
-root = ET.parse("CoverageReport/Cobertura.xml").getroot()
-line_rate = float(root.attrib.get("line-rate", "0"))
-print(f"{line_rate * 100:.2f}")
-PY
-)
+          line_coverage=$(python3 -c 'import xml.etree.ElementTree as ET; r = ET.parse("CoverageReport/Cobertura.xml").getroot(); print("%.2f" % (float(r.attrib.get("line-rate", "0")) * 100))')
 
           echo "Line coverage (production assemblies): ${line_coverage}%"
           if ! awk "BEGIN {exit !($line_coverage >= $COVERAGE_THRESHOLD)}"; then

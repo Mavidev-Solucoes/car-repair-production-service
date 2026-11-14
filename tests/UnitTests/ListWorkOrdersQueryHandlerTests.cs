@@ -10,11 +10,11 @@ public sealed class ListWorkOrdersQueryHandlerTests
     [Fact]
     public async Task Handle_ShouldMapRepositoryItemsToSummaryResponse()
     {
-        var newest = ServiceOrderJob.Create(Guid.NewGuid(), new ServiceJob(Guid.NewGuid(), "Alignment", "Wheel alignment"));
+        var newest = ServiceOrderJob.Create(Guid.NewGuid(), Guid.NewGuid(), new ServiceJob(Guid.NewGuid(), "Alignment", "Wheel alignment"));
         newest.StartWork();
         newest.FailWork("Part unavailable");
 
-        var oldest = ServiceOrderJob.Create(Guid.NewGuid(), new ServiceJob(Guid.NewGuid(), "Oil Change", "Replace engine oil"));
+        var oldest = ServiceOrderJob.Create(Guid.NewGuid(), Guid.NewGuid(), new ServiceJob(Guid.NewGuid(), "Oil Change", "Replace engine oil"));
         oldest.StartWork();
         oldest.CompleteWork();
 
@@ -48,6 +48,9 @@ public sealed class ListWorkOrdersQueryHandlerTests
     private sealed class InMemoryServiceOrderJobRepository(IReadOnlyCollection<ServiceOrderJob> items) : IServiceOrderJobRepository
     {
         public Task AddAsync(ServiceOrderJob serviceOrderJob, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<ServiceOrderJob?> GetByServiceOrderIdAsync(Guid serviceOrderId, CancellationToken cancellationToken)
+            => Task.FromResult(items.FirstOrDefault(item => item.ServiceOrderId == serviceOrderId));
 
         public Task<ServiceOrderJob?> GetByIdAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<ServiceOrderJob?>(null);
 

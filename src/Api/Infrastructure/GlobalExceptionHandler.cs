@@ -7,6 +7,8 @@ namespace Api.Infrastructure;
 
 public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
 {
+    private const string ProblemJson = "application/problem+json";
+
     public async ValueTask<bool> TryHandleAsync(
         HttpContext httpContext,
         Exception exception,
@@ -28,9 +30,8 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
             };
 
             httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
-            httpContext.Response.ContentType = "application/problem+json";
 
-            await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+            await httpContext.Response.WriteAsJsonAsync(problemDetails, options: null, contentType: ProblemJson, cancellationToken);
             return true;
         }
 
@@ -44,9 +45,8 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
             };
 
             httpContext.Response.StatusCode = StatusCodes.Status404NotFound;
-            httpContext.Response.ContentType = "application/problem+json";
 
-            await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+            await httpContext.Response.WriteAsJsonAsync(problemDetails, options: null, contentType: ProblemJson, cancellationToken);
             return true;
         }
 
@@ -60,9 +60,8 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
             };
 
             httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
-            httpContext.Response.ContentType = "application/problem+json";
 
-            await httpContext.Response.WriteAsJsonAsync(problemDetails, cancellationToken);
+            await httpContext.Response.WriteAsJsonAsync(problemDetails, options: null, contentType: ProblemJson, cancellationToken);
             return true;
         }
 
@@ -76,9 +75,8 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
         };
 
         httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        httpContext.Response.ContentType = "application/problem+json";
 
-        await httpContext.Response.WriteAsJsonAsync(errorDetails, cancellationToken);
+        await httpContext.Response.WriteAsJsonAsync(errorDetails, options: null, contentType: ProblemJson, cancellationToken);
         return true;
     }
 }

@@ -6,6 +6,7 @@ public sealed record GetWorkOrderQuery(Guid WorkOrderId) : IRequest<WorkOrderDet
 
 public sealed record WorkOrderDetailsResponse(
     Guid Id,
+    Guid ServiceOrderId,
     Guid ServiceJobId,
     string ServiceJobName,
     string? ServiceJobDescription,

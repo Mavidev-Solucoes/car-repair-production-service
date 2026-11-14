@@ -13,6 +13,7 @@ public sealed class ListWorkOrdersQueryHandler(IServiceOrderJobRepository reposi
         return workOrders
             .Select(workOrder => new WorkOrderSummaryResponse(
                 workOrder.Id,
+                workOrder.ServiceOrderId,
                 workOrder.ServiceJob.Id,
                 workOrder.ServiceJob.Name,
                 workOrder.Status.ToString(),

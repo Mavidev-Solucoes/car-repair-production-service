@@ -12,7 +12,7 @@ public sealed class ServiceOrderJobTests
     {
         var serviceJob = new ServiceJob(Guid.NewGuid(), "Oil Change", "Replace engine oil");
 
-        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), serviceJob);
+        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), Guid.NewGuid(), serviceJob);
 
         Assert.Equal(ServiceOrderJobStatus.Pending, workOrder.Status);
         Assert.Single(workOrder.StatusHistory);
@@ -23,7 +23,7 @@ public sealed class ServiceOrderJobTests
     public void StartWork_ShouldChangeStatusAndRaiseWorkStartedEvent()
     {
         var serviceJob = new ServiceJob(Guid.NewGuid(), "Oil Change", "Replace engine oil");
-        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), serviceJob);
+        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), Guid.NewGuid(), serviceJob);
 
         workOrder.StartWork();
 
@@ -36,7 +36,7 @@ public sealed class ServiceOrderJobTests
     public void CompleteWork_WhenNotInProgress_ShouldThrow()
     {
         var serviceJob = new ServiceJob(Guid.NewGuid(), "Oil Change", "Replace engine oil");
-        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), serviceJob);
+        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), Guid.NewGuid(), serviceJob);
 
         var action = () => workOrder.CompleteWork();
 
@@ -47,7 +47,7 @@ public sealed class ServiceOrderJobTests
     public void FailWork_ShouldSetFailureReasonAndRaiseEvent()
     {
         var serviceJob = new ServiceJob(Guid.NewGuid(), "Oil Change", "Replace engine oil");
-        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), serviceJob);
+        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), Guid.NewGuid(), serviceJob);
         workOrder.StartWork();
 
         workOrder.FailWork("Missing spare part");
@@ -79,7 +79,7 @@ public sealed class ServiceOrderJobTests
     public void FailWork_WhenReasonIsBlank_ShouldThrow()
     {
         var serviceJob = new ServiceJob(Guid.NewGuid(), "Oil Change", "Replace engine oil");
-        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), serviceJob);
+        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), Guid.NewGuid(), serviceJob);
         workOrder.StartWork();
 
         var action = () => workOrder.FailWork("   ");
@@ -91,7 +91,7 @@ public sealed class ServiceOrderJobTests
     public void FailWork_ShouldTrimReasonAndValidateMaxLength()
     {
         var serviceJob = new ServiceJob(Guid.NewGuid(), "Oil Change", "Replace engine oil");
-        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), serviceJob);
+        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), Guid.NewGuid(), serviceJob);
         workOrder.StartWork();
 
         workOrder.FailWork("  Missing spare part  ");
@@ -99,7 +99,7 @@ public sealed class ServiceOrderJobTests
         Assert.Equal("Missing spare part", workOrder.FailureReason);
         Assert.Throws<ArgumentException>(() =>
         {
-            var anotherWorkOrder = ServiceOrderJob.Create(Guid.NewGuid(), serviceJob);
+            var anotherWorkOrder = ServiceOrderJob.Create(Guid.NewGuid(), Guid.NewGuid(), serviceJob);
             anotherWorkOrder.StartWork();
             anotherWorkOrder.FailWork(new string('a', ServiceOrderJobStatusHistory.ReasonMaxLength + 1));
         });

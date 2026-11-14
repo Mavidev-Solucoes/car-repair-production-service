@@ -19,7 +19,7 @@ public sealed class WorkOrdersController(ISender sender) : ControllerBase
     public async Task<IActionResult> CreateWorkOrder([FromBody] CreateWorkOrderRequest request, CancellationToken cancellationToken)
     {
         var workOrderId = await sender.Send(
-            new CreateWorkOrderCommand(request.ServiceJobId, request.ServiceJobName, request.ServiceJobDescription),
+            new CreateWorkOrderCommand(request.ServiceOrderId, request.ServiceJobId, request.ServiceJobName, request.ServiceJobDescription),
             cancellationToken);
 
         return CreatedAtAction(nameof(GetWorkOrderById), new { workOrderId = workOrderId }, new { id = workOrderId });
@@ -78,6 +78,6 @@ public sealed class WorkOrdersController(ISender sender) : ControllerBase
     }
 }
 
-public sealed record CreateWorkOrderRequest(Guid ServiceJobId, string ServiceJobName, string? ServiceJobDescription);
+public sealed record CreateWorkOrderRequest(Guid ServiceOrderId, Guid ServiceJobId, string ServiceJobName, string? ServiceJobDescription);
 
 public sealed record FailWorkRequest(string Reason);

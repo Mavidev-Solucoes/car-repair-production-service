@@ -1,92 +1,48 @@
-using System.Collections.Concurrent;
-using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Domain.Common;
 
 namespace Application.Common.Messaging;
 
 public static class DomainEventPublisherExtensions
 {
-    private static readonly ConcurrentDictionary<Type, MethodInfo> PublishDomainEventMethods = new();
+    private const string DomainEventSuffix = "DomainEvent";
 
-    public static Task PublishDomainEventAsync<TDomainEvent>(
-        this IEventPublisher eventPublisher,
-        TDomainEvent domainEvent,
-        Guid correlationId,
-        CancellationToken cancellationToken = default)
-        where TDomainEvent : class, IDomainEvent
-    {
-        var eventType = typeof(TDomainEvent).Name;
-        var envelope = new MessageEnvelope<TDomainEvent>
-        {
-            MessageId = Guid.NewGuid(),
-            CorrelationId = correlationId.ToString("N"),
-            SagaId = null,
-            EventType = eventType,
-            EventVersion = 1,
-            OccurredAt = domainEvent.OccurredOnUtc,
-            Message = domainEvent
-        };
-
-        return eventPublisher.PublishAsync(envelope, BuildRoutingKey(eventType), cancellationToken);
-    }
-
+    /// <summary>
+    /// Publica os eventos de domínio no envelope do contrato. O tipo é o nome da classe sem o sufixo
+    /// "DomainEvent" (WorkCompletedDomainEvent → WorkCompleted) e o correlationId é o id da OS.
+    /// </summary>
     public static async Task PublishDomainEventsAsync(
         this IEventPublisher eventPublisher,
         IEnumerable<IDomainEvent> domainEvents,
-        Guid correlationId,
+        Guid serviceOrderId,
         CancellationToken cancellationToken = default)
     {
         foreach (var domainEvent in domainEvents)
         {
-            var publishMethod = PublishDomainEventMethods.GetOrAdd(
-                domainEvent.GetType(),
-                static domainEventType => typeof(DomainEventPublisherExtensions)
-                    .GetMethod(nameof(PublishDomainEventAsync), BindingFlags.Public | BindingFlags.Static)!
-                    .MakeGenericMethod(domainEventType));
-
-            var result = publishMethod.Invoke(null, [eventPublisher, domainEvent, correlationId, cancellationToken]);
-            if (result is Task publishTask)
-            {
-                await publishTask;
-            }
+            await eventPublisher.PublishAsync(ToIntegrationMessage(domainEvent, serviceOrderId), cancellationToken);
         }
     }
 
-    private static string BuildRoutingKey(string eventType)
+    public static IntegrationMessage ToIntegrationMessage(IDomainEvent domainEvent, Guid serviceOrderId)
     {
-        var eventName = eventType.EndsWith("DomainEvent", StringComparison.Ordinal)
-            ? eventType[..^"DomainEvent".Length]
-            : eventType;
+        var payload = JsonSerializer.SerializeToNode(domainEvent, domainEvent.GetType(), IntegrationMessage.SerializerOptions) as JsonObject ?? [];
+        payload.Remove("occurredOnUtc");
 
-        if (string.IsNullOrEmpty(eventName))
+        return new IntegrationMessage
         {
-            return string.Empty;
-        }
+            Type = GetEventType(domainEvent),
+            CorrelationId = serviceOrderId.ToString("D"),
+            OccurredAtUtc = domainEvent.OccurredOnUtc,
+            Payload = payload
+        };
+    }
 
-        var segments = new List<string>();
-        var start = 0;
-
-        for (var i = 1; i < eventName.Length; i++)
-        {
-            var currentChar = eventName[i];
-            var previousChar = eventName[i - 1];
-            var nextChar = i + 1 < eventName.Length ? eventName[i + 1] : (char?)null;
-
-            var isStartOfWord = char.IsUpper(currentChar) && char.IsLower(previousChar);
-            var isEndOfAcronym =
-                char.IsUpper(currentChar) &&
-                char.IsUpper(previousChar) &&
-                nextChar.HasValue &&
-                char.IsLower(nextChar.Value);
-
-            if (isStartOfWord || isEndOfAcronym)
-            {
-                segments.Add(eventName[start..i].ToLowerInvariant());
-                start = i;
-            }
-        }
-
-        segments.Add(eventName[start..].ToLowerInvariant());
-        return string.Join('.', segments);
+    public static string GetEventType(IDomainEvent domainEvent)
+    {
+        var name = domainEvent.GetType().Name;
+        return name.EndsWith(DomainEventSuffix, StringComparison.Ordinal) && name.Length > DomainEventSuffix.Length
+            ? name[..^DomainEventSuffix.Length]
+            : name;
     }
 }

@@ -37,7 +37,7 @@ public sealed class StartWorkCommandHandler(
         {
             try
             {
-                await eventPublisher.PublishDomainEventsAsync(domainEvents, workOrder.Id, cancellationToken);
+                await eventPublisher.PublishDomainEventsAsync(domainEvents, workOrder.ServiceOrderId, cancellationToken);
                 workOrder.ClearDomainEvents();
             }
             catch (Exception ex)

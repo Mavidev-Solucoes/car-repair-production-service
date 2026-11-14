@@ -14,8 +14,19 @@ public sealed class CreateWorkOrderCommandHandler(
 {
     public async Task<Guid> Handle(CreateWorkOrderCommand request, CancellationToken cancellationToken)
     {
+        // Idempotência: a saga pode reenviar o comando; uma OS tem no máximo uma ordem de execução.
+        var existing = await repository.GetByServiceOrderIdAsync(request.ServiceOrderId, cancellationToken);
+        if (existing is not null)
+        {
+            logger.LogInformation(
+                "Work order {WorkOrderId} already exists for service order {ServiceOrderId}.",
+                existing.Id,
+                request.ServiceOrderId);
+            return existing.Id;
+        }
+
         var serviceJob = new ServiceJob(request.ServiceJobId, request.ServiceJobName, request.ServiceJobDescription);
-        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), serviceJob);
+        var workOrder = ServiceOrderJob.Create(Guid.NewGuid(), request.ServiceOrderId, serviceJob);
 
         await repository.AddAsync(workOrder, cancellationToken);
 
@@ -24,7 +35,7 @@ public sealed class CreateWorkOrderCommandHandler(
         {
             try
             {
-                await eventPublisher.PublishDomainEventsAsync(domainEvents, workOrder.Id, cancellationToken);
+                await eventPublisher.PublishDomainEventsAsync(domainEvents, workOrder.ServiceOrderId, cancellationToken);
                 workOrder.ClearDomainEvents();
             }
             catch (Exception ex)

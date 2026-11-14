@@ -45,6 +45,7 @@ public static class DependencyInjection
 
         services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
         services.AddSingleton<ICommandConsumer, RabbitMqCommandConsumer>();
+        services.AddHostedService<SagaCommandsWorker>();
 
         return services;
     }
