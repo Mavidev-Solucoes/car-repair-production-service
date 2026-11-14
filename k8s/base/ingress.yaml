@@ -1,0 +1,23 @@
+# Rotas públicas do serviço no Kong (IngressClass kong, instalada pelo car-repair-k8s-infra).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: car-repair-production-service
+  labels:
+    app.kubernetes.io/name: car-repair-production-service
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: car-repair
+  annotations:
+    konghq.com/strip-path: "false"
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /api/work-orders
+            pathType: Prefix
+            backend:
+              service:
+                name: car-repair-production-service
+                port:
+                  name: http

@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: car-repair-production-service
+  labels:
+    app.kubernetes.io/name: car-repair-production-service
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: car-repair
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: car-repair-production-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: car-repair-production-service
+        app.kubernetes.io/component: api
+        app.kubernetes.io/part-of: car-repair
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: api
+          image: car-repair-production-service
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: car-repair-production-service-config
+          env:
+            - name: MONGO_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: production-mongodb
+                  key: username
+            - name: MONGO_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: production-mongodb
+                  key: password
+            - name: RabbitMq__UserName
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq
+                  key: username
+            - name: RabbitMq__Password
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq
+                  key: password
+            # Montada a partir das variáveis acima (o Kubernetes expande $(VAR) declaradas antes).
+            - name: MongoDb__ConnectionString
+              value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@production-mongodb:27017/?authSource=admin"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Liveness não depende do banco nem do broker: se eles caírem, o pod só sai do balanceamento (readiness).
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
