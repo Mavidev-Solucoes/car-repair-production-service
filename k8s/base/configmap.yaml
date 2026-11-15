@@ -13,3 +13,9 @@ data:
   RabbitMq__Enabled: "true"
   RabbitMq__HostName: "rabbitmq"
   MongoDb__DatabaseName: "carRepairProductionDb"
+  # New Relic APM (agente .NET na imagem). A license vem do Secret newrelic-license;
+  # sem ele o agente fica sem enviar dados e o serviço segue normal.
+  CORECLR_ENABLE_PROFILING: "1"
+  NEW_RELIC_APP_NAME: "car-repair-production-service"
+  NEW_RELIC_DISTRIBUTED_TRACING_ENABLED: "true"
+  NEW_RELIC_LABELS: "project:car-repair-shop;phase:4;service:production-service"

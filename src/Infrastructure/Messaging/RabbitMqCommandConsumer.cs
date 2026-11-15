@@ -83,7 +83,12 @@ public sealed class RabbitMqCommandConsumer(
         {
             try
             {
-                await onMessage(Deserialize(eventArgs.Body), cancellationToken);
+                var message = Deserialize(eventArgs.Body);
+                await MessageTracing.ConsumeAsync(
+                    message.Type,
+                    message.CorrelationId,
+                    eventArgs.BasicProperties?.Headers,
+                    () => onMessage(message, cancellationToken));
 
                 await channelLock.WaitAsync(CancellationToken.None);
                 try
