@@ -17,7 +17,8 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 
-if (app.Environment.IsDevelopment())
+// Swagger em desenvolvimento e onde Swagger:Enabled=true (ConfigMap do k8s), para consulta e demonstração.
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue("Swagger:Enabled", false))
 {
     app.UseSwagger();
     app.UseSwaggerUI();
